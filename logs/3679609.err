@@ -1,0 +1,16 @@
+usage: conda [-h] [--no-plugins] [-V] COMMAND ...
+conda: error: argument COMMAND: invalid choice: 'activate' (choose from 'clean', 'compare', 'config', 'create', 'info', 'init', 'install', 'list', 'notices', 'package', 'remove', 'uninstall', 'rename', 'run', 'search', 'update', 'upgrade', 'build', 'content-trust', 'convert', 'debug', 'develop', 'doctor', 'index', 'inspect', 'metapackage', 'render', 'skeleton', 'env', 'server', 'repo', 'pack', 'token', 'verify')
+W0921 20:40:36.348000 140691127125824 torch/distributed/run.py:779] 
+W0921 20:40:36.348000 140691127125824 torch/distributed/run.py:779] *****************************************
+W0921 20:40:36.348000 140691127125824 torch/distributed/run.py:779] Setting OMP_NUM_THREADS environment variable for each process to be 1 in default, to avoid your system being overloaded, please further tune the variable for optimal performance in your application as needed. 
+W0921 20:40:36.348000 140691127125824 torch/distributed/run.py:779] *****************************************
+/N/slate/daripete/anaconda3/envs/dac/lib/python3.11/site-packages/torch/nn/utils/weight_norm.py:134: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+/N/slate/daripete/anaconda3/envs/dac/lib/python3.11/site-packages/torch/nn/utils/weight_norm.py:134: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+/N/slate/daripete/anaconda3/envs/dac/lib/python3.11/site-packages/audiotools/ml/accelerator.py:112: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  return torch.cuda.amp.autocast(self.amp, *args, **kwargs)
+/N/slate/daripete/anaconda3/envs/dac/lib/python3.11/site-packages/audiotools/ml/accelerator.py:112: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  return torch.cuda.amp.autocast(self.amp, *args, **kwargs)
+/N/slate/daripete/anaconda3/envs/dac/lib/python3.11/site-packages/audiotools/ml/accelerator.py:112: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  return torch.cuda.amp.autocast(self.amp, *args, **kwargs)
