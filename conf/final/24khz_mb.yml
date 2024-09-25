@@ -1,9 +1,16 @@
+# Multiband
+MultibandResampler.sampling_rate: 24000
+MultibandResampler.cutoffs: [6000,12000,24000]
+
 # Model setup
 DAC.sample_rate: 24000
 DAC.encoder_dim: 64
 DAC.encoder_rates: [2, 4, 5, 8]
 DAC.decoder_dim: 1536
-DAC.decoder_rates: [8, 5, 4, 2]
+DAC.decoder_rates: 
+  - [8, 5, 2, 1]
+  - [5, 2, 2]
+  - [4, 2]
 
 # Quantization
 DAC.n_codebooks: 32

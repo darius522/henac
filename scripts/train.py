@@ -1,5 +1,7 @@
 import os
 import sys
+sys.path.append('/N/slate/daripete/jstsp-dac')
+
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
@@ -17,6 +19,8 @@ from audiotools.ml.decorators import timer
 from audiotools.ml.decorators import Tracker
 from audiotools.ml.decorators import when
 from torch.utils.tensorboard import SummaryWriter
+
+from utils.audio_utils import MultibandResampler, resample_bands
 
 import dac
 
@@ -52,6 +56,9 @@ filter_fn = lambda fn: hasattr(fn, "transform") and fn.__qualname__ not in [
     "Choose",
 ]
 tfm = argbind.bind_module(transforms, "train", "val", filter_fn=filter_fn)
+
+# Multiband
+MultibandResampler = argbind.bind(MultibandResampler)
 
 # Loss
 filter_fn = lambda fn: hasattr(fn, "forward") and "Loss" in fn.__name__
@@ -119,6 +126,8 @@ class State:
     val_data: AudioDataset
 
     tracker: Tracker
+    
+    resampler: MultibandResampler
 
 
 @argbind.bind(without_prefix=True)
@@ -148,6 +157,7 @@ def load(
 
     generator = DAC() if generator is None else generator
     discriminator = Discriminator() if discriminator is None else discriminator
+    resampler = MultibandResampler()
 
     tracker.print(generator)
     tracker.print(discriminator)
@@ -199,6 +209,7 @@ def load(
         tracker=tracker,
         train_data=train_data,
         val_data=val_data,
+        resampler=resampler
     )
 
 
@@ -230,18 +241,23 @@ def train_loop(state, batch, accel, lambdas):
 
     batch = util.prepare_batch(batch, accel.device)
     with torch.no_grad():
-        signal = state.train_data.transform(
+        signals = state.train_data.transform(
             batch["signal"].clone(), **batch["transform_args"]
         )
+        bands = state.resampler(signals)
 
+    # Generator output
+    full_band = AudioSignal(torch.stack(bands).sum(0), signals.sample_rate)
     with accel.autocast():
-        out = state.generator(signal.audio_data, signal.sample_rate)
-        recons = AudioSignal(out["audio"], signal.sample_rate)
+        out = state.generator(full_band.audio_data, signals.sample_rate)
+        full_recons = torch.stack(resample_bands(out['audio'], full_band.shape[-1])).sum(0)
+        full_recons = AudioSignal(full_recons, signals.sample_rate)
         commitment_loss = out["vq/commitment_loss"]
         codebook_loss = out["vq/codebook_loss"]
 
+    # Discriminator (full-band)
     with accel.autocast():
-        output["adv/disc_loss"] = state.gan_loss.discriminator_loss(recons, signal)
+        output["adv/disc_loss"] = state.gan_loss.discriminator_loss(full_recons, full_band)
 
     state.optimizer_d.zero_grad()
     accel.backward(output["adv/disc_loss"])
@@ -252,14 +268,28 @@ def train_loop(state, batch, accel, lambdas):
     accel.step(state.optimizer_d)
     state.scheduler_d.step()
 
+    # Generator (band-wise)
+    recons_bands = out['audio']
+    bands = resample_bands(bands, [rb.shape[-1] for rb in recons_bands])
     with accel.autocast():
-        output["stft/loss"] = state.stft_loss(recons, signal)
-        output["mel/loss"] = state.mel_loss(recons, signal)
-        output["waveform/loss"] = state.waveform_loss(recons, signal)
-        (
-            output["adv/gen_loss"],
-            output["adv/feat_loss"],
-        ) = state.gan_loss.generator_loss(recons, signal)
+        for recon, band in zip(recons_bands, bands):
+            recon, band = AudioSignal(recon, signals.sample_rate), AudioSignal(band, signals.sample_rate)
+            output["stft/loss"] = output.setdefault("stft/loss", 0) + state.stft_loss(
+                recon, band
+            )
+            output["mel/loss"] = output.setdefault("mel/loss", 0) + state.mel_loss(
+                recon, band
+            )
+            output["waveform/loss"] = output.setdefault(
+                "waveform/loss", 0
+            ) + state.waveform_loss(recon, band)
+            (
+                gen_loss,
+                feat_loss,
+            ) = state.gan_loss.generator_loss(recon, band)
+            output["adv/gen_loss"] = output.setdefault("adv/gen_loss", 0) + gen_loss
+            output["adv/feat_loss"] = output.setdefault("adv/feat_loss", 0) + feat_loss
+
         output["vq/commitment_loss"] = commitment_loss
         output["vq/codebook_loss"] = codebook_loss
         output["loss"] = sum([v * output[k] for k, v in lambdas.items() if k in output])
@@ -275,7 +305,7 @@ def train_loop(state, batch, accel, lambdas):
     accel.update()
 
     output["other/learning_rate"] = state.optimizer_g.param_groups[0]["lr"]
-    output["other/batch_size"] = signal.batch_size * accel.world_size
+    output["other/batch_size"] = full_band.batch_size * accel.world_size
 
     return {k: v for k, v in sorted(output.items())}
 

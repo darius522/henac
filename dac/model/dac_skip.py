@@ -11,30 +11,25 @@ from torch import nn
 from .base import CodecMixin
 from dac.nn.layers import Snake1d
 from dac.nn.layers import WNConv1d
-from dac.nn.layers import WNConvTranspose1d
-from dac.nn.layers import EncoderBlock, DecoderBlock, ResidualUnit
-from dac.nn.layers import init_weights
 from dac.nn.quantize import ResidualVectorQuantize
-from dac.model.dac_skip import DACSkip
+from dac.nn.layers import EncoderBlock, DecoderBlock
+from dac.nn.layers import init_weights
+
 from plots.plot import residual_plots
 
-
-class Encoder(nn.Module):
+class EncoderSkip(nn.Module):
     def __init__(
         self,
-        d_model: int = 64,
-        strides: list = [2, 4, 8, 8],
+        d_model: int = 512,
+        strides: list = [1, 1, 1],
         d_latent: int = 64,
-        num_skips: int = 0,
     ):
         super().__init__()
-        # Create first convolution
-        self.block = [WNConv1d(1, d_model, kernel_size=7, padding=3)]
 
+        self.block = []
         # Create EncoderBlocks that double channels as they downsample by `stride`
         for stride in strides:
-            d_model *= 2
-            self.block += [EncoderBlock(d_model, stride=stride)]
+            self.block += [EncoderBlock(d_model, in_dim=d_model, stride=stride)]
 
         # Create last convolution
         self.block += [
@@ -45,25 +40,19 @@ class Encoder(nn.Module):
         # Wrap black into nn.Sequential
         self.block = nn.Sequential(*self.block)
         self.enc_dim = d_model
-        self.num_skips = num_skips
 
     def forward(self, x):
-        skips = []
         for i, m in enumerate(self.block):
             x = m(x)
-            if isinstance(m, EncoderBlock):
-                skips.append(x)
-        skips = list(reversed(skips))
-        return x, skips[1 : self.num_skips + 1]
+        return x
 
 
-class Decoder(nn.Module):
+class DecoderSkip(nn.Module):
     def __init__(
         self,
         input_channel,
         channels,
         rates,
-        d_out: int = 1,
     ):
         super().__init__()
 
@@ -72,43 +61,31 @@ class Decoder(nn.Module):
 
         # Add upsampling + MRF blocks
         for i, stride in enumerate(rates):
-            input_dim = channels // 2**i
-            output_dim = channels // 2 ** (i + 1)
+            input_dim = channels if i == 0 else input_channel
+            output_dim = input_channel
             layers += [DecoderBlock(input_dim, output_dim, stride)]
 
-        # Add final conv layer
-        layers += [
-            Snake1d(output_dim),
-            WNConv1d(output_dim, d_out, kernel_size=7, padding=3),
-            nn.Tanh(),
-        ]
-
         self.model = nn.Sequential(*layers)
-        self.channels = channels
 
     def forward(self, x):
-        blind_us = None
         for i, m in enumerate(self.model):
             x = m(x)
-            if blind_us is None and isinstance(m, DecoderBlock):
-                blind_us = x
-        return x, blind_us
+        return x
 
 
-class DAC(BaseModel, CodecMixin):
+class DACSkip(BaseModel, CodecMixin):
     def __init__(
         self,
-        encoder_dim: int = 64,
-        encoder_rates: List[int] = [2, 4, 5, 8],
-        latent_dim: int = None,
-        decoder_dim: int = 1536,
-        decoder_rates: List[List] = [[8, 5, 4, 2],[5, 4, 2],[4, 2]],
-        n_codebooks: int = 9,
-        codebook_size: int = 1024,
+        encoder_dim: int = 512,
+        encoder_rates: List[int] = [1, 1, 1],
+        latent_dim: int = 512,
+        decoder_dim: int = 768,
+        decoder_rates: List[int] = [1, 1, 1],
+        n_codebooks: int = 2,
+        codebook_size: int = 512,
         codebook_dim: Union[int, list] = 8,
         quantizer_dropout: bool = False,
         sample_rate: int = 44100,
-        num_skips: int = 2,
     ):
         super().__init__()
 
@@ -118,39 +95,10 @@ class DAC(BaseModel, CodecMixin):
         self.decoder_rates = decoder_rates
         self.sample_rate = sample_rate
 
-        if latent_dim is None:
-            latent_dim = encoder_dim * (2 ** len(encoder_rates))
-
         self.latent_dim = latent_dim
 
         self.hop_length = np.prod(encoder_rates)
-        self.encoder = Encoder(
-            encoder_dim, encoder_rates, latent_dim, num_skips=num_skips
-        )
-        self.skip_aes, self.multidecoders = nn.ModuleList([]), nn.ModuleList([])
-        self.multidecoders.append(
-            Decoder(
-                latent_dim,
-                decoder_dim,
-                decoder_rates[0],
-            )
-        ) 
-
-        for n in range(num_skips):
-            skip_dim = (latent_dim // 2) // (n + 1)
-            blind_us_dim = self.multidecoders[-1].channels // 2
-            self.skip_aes.append(
-                DACSkip(
-                    encoder_dim=skip_dim, latent_dim=skip_dim, codebook_size=skip_dim
-                )
-            )
-            self.multidecoders.append(
-                Decoder(
-                    skip_dim + blind_us_dim,
-                    skip_dim,
-                    decoder_rates[n+1],
-                )
-            )
+        self.encoder = EncoderSkip(encoder_dim, encoder_rates, latent_dim)
 
         self.n_codebooks = n_codebooks
         self.codebook_size = codebook_size
@@ -163,6 +111,11 @@ class DAC(BaseModel, CodecMixin):
             quantizer_dropout=quantizer_dropout,
         )
 
+        self.decoder = DecoderSkip(
+            latent_dim,
+            decoder_dim,
+            decoder_rates,
+        )
         self.sample_rate = sample_rate
         self.apply(init_weights)
 
@@ -213,21 +166,13 @@ class DAC(BaseModel, CodecMixin):
             "length" : int
                 Number of samples in input audio
         """
-        z, skips = self.encoder(audio_data)
+        z = self.encoder(audio_data)
         z, codes, latents, commitment_loss, codebook_loss = self.quantizer(
             z, n_quantizers
         )
-        return z, codes, latents, commitment_loss, codebook_loss, skips
+        return z, codes, latents, commitment_loss, codebook_loss
 
-    def autoencode_skips(self, skips: List):
-        outputs = [ae(skip) for skip, ae in zip(skips, self.skip_aes)]
-        return (
-            [o["audio"] for o in outputs],
-            torch.stack([o["vq/commitment_loss"] for o in outputs]).sum(),
-            torch.stack([o["vq/codebook_loss"] for o in outputs]).sum(),
-        )
-
-    def multidecode(self, z: torch.Tensor, skips: List):
+    def decode(self, z: torch.Tensor):
         """Decode given latent codes and return audio data
 
         Parameters
@@ -244,13 +189,7 @@ class DAC(BaseModel, CodecMixin):
             "audio" : Tensor[B x 1 x length]
                 Decoded audio data.
         """
-        x_cb, blind_us = self.multidecoders[0](z)
-        audios = [x_cb]
-        for skip, dec in zip(skips, self.multidecoders[1:]):
-            skip_blind_us = torch.concat([blind_us, skip], axis=1)
-            decoded, blind_us = dec(skip_blind_us)
-            audios.append(decoded)
-        return audios
+        return self.decoder(z)
 
     def forward(
         self,
@@ -294,60 +233,16 @@ class DAC(BaseModel, CodecMixin):
         """
         length = audio_data.shape[-1]
         audio_data = self.preprocess(audio_data, sample_rate)
-        z, codes, latents, commitment_loss, codebook_loss, skips = self.encode(
+        z, codes, latents, commitment_loss, codebook_loss = self.encode(
             audio_data, n_quantizers
         )
 
-        skips, skips_commitment_loss, skips_codebook_loss = self.autoencode_skips(skips)
-        xs = self.multidecode(z, skips)
-        import pdb; pdb.set_trace()
+        x = self.decode(z)
         return {
-            "audio": [x[..., :length] for x in xs],
+            "audio": x[..., :length],
             "z": z,
             "codes": codes,
             "latents": latents,
-            "vq/commitment_loss": commitment_loss + skips_commitment_loss.sum(),
-            "vq/codebook_loss": codebook_loss + skips_codebook_loss.sum(),
+            "vq/commitment_loss": commitment_loss,
+            "vq/codebook_loss": codebook_loss,
         }
-
-
-if __name__ == "__main__":
-    import numpy as np
-    from functools import partial
-
-    model = DAC().to("cpu")
-
-    for n, m in model.named_modules():
-        o = m.extra_repr()
-        p = sum([np.prod(p.size()) for p in m.parameters()])
-        fn = lambda o, p: o + f" {p/1e6:<.3f}M params."
-        setattr(m, "extra_repr", partial(fn, o=o, p=p))
-    print(model)
-    print("Total # of params: ", sum([np.prod(p.size()) for p in model.parameters()]))
-
-    length = 88200 * 2
-    x = torch.randn(1, 1, length).to(model.device)
-    x.requires_grad_(True)
-    x.retain_grad()
-
-    # Make a forward pass
-    out = model(x)["audio"]
-    print("Input shape:", x.shape)
-    print("Output shape:", out.shape)
-
-    # Create gradient variable
-    grad = torch.zeros_like(out)
-    grad[:, :, grad.shape[-1] // 2] = 1
-
-    # Make a backward pass
-    out.backward(grad)
-
-    # Check non-zero values
-    gradmap = x.grad.squeeze(0)
-    gradmap = (gradmap != 0).sum(0)  # sum across features
-    rf = (gradmap != 0).sum()
-
-    print(f"Receptive field: {rf.item()}")
-
-    x = AudioSignal(torch.randn(1, 1, 44100 * 60), 44100)
-    model.decompress(model.compress(x, verbose=True), verbose=True)

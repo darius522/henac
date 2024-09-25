@@ -2,8 +2,8 @@
 
 #SBATCH -J dac
 #SBATCH -p gpu
-#SBATCH -o /N/slate/daripete/descript-audio-codec/logs/%j.out
-#SBATCH -e /N/slate/daripete/descript-audio-codec/logs/%j.err
+#SBATCH -o /N/slate/daripete/jstsp-dac/logs/%j.out
+#SBATCH -e /N/slate/daripete/jstsp-dac/logs/%j.err
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=daripete@iu.edu
 #SBATCH --nodes=1
