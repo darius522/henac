@@ -13,7 +13,7 @@ DAC.decoder_rates:
   - [4, 2]
 
 # Quantization
-DAC.n_codebooks: 32
+DAC.n_codebooks: 20
 DAC.codebook_size: 1024
 DAC.codebook_dim: 8
 DAC.quantizer_dropout: 0.5
@@ -37,13 +37,13 @@ ExponentialLR.gamma: 0.999996
 
 resume_ckpt: ''
 amp: false
-val_batch_size: 100
+val_batch_size: 32
 device: cuda
-num_iters: 400000
-save_iters: [10000, 50000, 100000, 200000]
+num_iters: 400_000
+save_iters: [10_000, 50_000, 100_000, 200_000]
 valid_freq: 1000
 sample_freq: 10000
-num_workers: 0
+num_workers: 32
 val_idx: [0, 1, 2, 3, 4, 5, 6, 7]
 seed: 0
 lambdas:
@@ -81,9 +81,9 @@ batch_size: 32
 train/AudioDataset.duration: 0.38
 train/AudioDataset.n_examples: 10000000
 
-val/AudioDataset.duration: 5.0
+val/AudioDataset.duration: 0.38
 val/build_transform.augment_prob: 1.0
-val/AudioDataset.n_examples: 250
+val/AudioDataset.n_examples: 256
 
 test/AudioDataset.duration: 10.0
 test/build_transform.augment_prob: 1.0

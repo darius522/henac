@@ -73,7 +73,7 @@ class DecoderSkip(nn.Module):
         return x
 
 
-class DACSkip(BaseModel, CodecMixin):
+class DACSkip(nn.Module):
     def __init__(
         self,
         encoder_dim: int = 512,
@@ -81,11 +81,11 @@ class DACSkip(BaseModel, CodecMixin):
         latent_dim: int = 512,
         decoder_dim: int = 768,
         decoder_rates: List[int] = [1, 1, 1],
-        n_codebooks: int = 2,
+        n_codebooks: int = 1,
         codebook_size: int = 512,
-        codebook_dim: Union[int, list] = 8,
+        codebook_dim: Union[int, list] = 4,
         quantizer_dropout: bool = False,
-        sample_rate: int = 44100,
+        sample_rate: int = 24000,
     ):
         super().__init__()
 
@@ -118,8 +118,6 @@ class DACSkip(BaseModel, CodecMixin):
         )
         self.sample_rate = sample_rate
         self.apply(init_weights)
-
-        self.delay = self.get_delay()
 
     def preprocess(self, audio_data, sample_rate):
         if sample_rate is None:

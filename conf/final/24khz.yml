@@ -30,7 +30,7 @@ ExponentialLR.gamma: 0.999996
 
 resume_ckpt: ''
 amp: false
-val_batch_size: 100
+val_batch_size: 1
 device: cuda
 num_iters: 400000
 save_iters: [10000, 50000, 100000, 200000]

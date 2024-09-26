@@ -300,7 +300,6 @@ class DAC(BaseModel, CodecMixin):
 
         skips, skips_commitment_loss, skips_codebook_loss = self.autoencode_skips(skips)
         xs = self.multidecode(z, skips)
-        import pdb; pdb.set_trace()
         return {
             "audio": [x[..., :length] for x in xs],
             "z": z,

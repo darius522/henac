@@ -218,18 +218,23 @@ def load(
 def val_loop(batch, state, accel):
     state.generator.eval()
     batch = util.prepare_batch(batch, accel.device)
-    signal = state.val_data.transform(
+    signals = state.val_data.transform(
         batch["signal"].clone(), **batch["transform_args"]
     )
+    bands = state.resampler(signals)
 
-    out = state.generator(signal.audio_data, signal.sample_rate)
-    recons = AudioSignal(out["audio"], signal.sample_rate)
+    # Generator output
+    full_band = AudioSignal(torch.stack(bands).sum(0), signals.sample_rate)
+
+    out = state.generator(full_band.audio_data, signals.sample_rate)
+    full_recons = torch.stack(resample_bands(out['audio'], full_band.shape[-1])).sum(0)
+    full_recons = AudioSignal(full_recons, signals.sample_rate)
 
     return {
-        "loss": state.mel_loss(recons, signal),
-        "mel/loss": state.mel_loss(recons, signal),
-        "stft/loss": state.stft_loss(recons, signal),
-        "waveform/loss": state.waveform_loss(recons, signal),
+        "loss": state.mel_loss(full_recons, full_band),
+        "mel/loss": state.mel_loss(full_recons, full_band),
+        "stft/loss": state.stft_loss(full_recons, full_band),
+        "waveform/loss": state.waveform_loss(full_recons, full_band),
     }
 
 
@@ -290,8 +295,8 @@ def train_loop(state, batch, accel, lambdas):
             output["adv/gen_loss"] = output.setdefault("adv/gen_loss", 0) + gen_loss
             output["adv/feat_loss"] = output.setdefault("adv/feat_loss", 0) + feat_loss
 
-        output["vq/commitment_loss"] = commitment_loss
-        output["vq/codebook_loss"] = codebook_loss
+        output["vq/commitment_loss"] = commitment_loss.sum()
+        output["vq/codebook_loss"] = codebook_loss.sum()
         output["loss"] = sum([v * output[k] for k, v in lambdas.items() if k in output])
 
     state.optimizer_g.zero_grad()
@@ -349,16 +354,19 @@ def save_samples(state, val_idx, writer):
     samples = [state.val_data[idx] for idx in val_idx]
     batch = state.val_data.collate(samples)
     batch = util.prepare_batch(batch, accel.device)
-    signal = state.train_data.transform(
+    signals = state.train_data.transform(
         batch["signal"].clone(), **batch["transform_args"]
     )
 
-    out = state.generator(signal.audio_data, signal.sample_rate)
-    recons = AudioSignal(out["audio"], signal.sample_rate)
+    bands = state.resampler(signals)
+    full_band = AudioSignal(torch.stack(bands).sum(0), signals.sample_rate)
+    out = state.generator(full_band.audio_data, full_band.sample_rate)
+    full_recons = torch.stack(resample_bands(out['audio'], full_band.shape[-1])).sum(0)
+    full_recons = AudioSignal(full_recons, signals.sample_rate)
 
-    audio_dict = {"recons": recons}
+    audio_dict = {"recons": full_recons}
     if state.tracker.step == 0:
-        audio_dict["signal"] = signal
+        audio_dict["signal"] = full_band
 
     for k, v in audio_dict.items():
         for nb in range(v.batch_size):
@@ -447,9 +455,11 @@ def train(
                 tracker.step == num_iters - 1 if num_iters is not None else False
             )
             if tracker.step % sample_freq == 0 or last_iter:
+                print('Saving samples ...')
                 save_samples(state, val_idx, writer)
 
             if tracker.step % valid_freq == 0 or last_iter:
+                print('Validating / Checkpointing ...')
                 validate(state, val_dataloader, accel)
                 checkpoint(state, save_iters, save_path)
                 # Reset validation progress bar, print summary since last validation.
