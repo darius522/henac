@@ -92,9 +92,7 @@ class Encoder(nn.Module):
 
     def forward(self, x):
         for i, m in enumerate(self.block):
-            print(f'enc: {i}, {type(m)}, {x.shape}')
             x = m(x)
-        print(f'enc: final: {x.shape}')
         return x
 
 
@@ -150,9 +148,8 @@ class Decoder(nn.Module):
 
     def forward(self, x):
         for i, m in enumerate(self.model):
-            print(f'dec: {i}, {type(m)}, {x.shape}')
             x = m(x)
-        print(f'dec final: {x.shape}')
+        return x
 
 
 class DAC(BaseModel, CodecMixin):
