@@ -18,7 +18,7 @@ from torchmetrics.audio import ScaleInvariantSignalNoiseRatio
 
 import argparse, os
 
-DURATION = 10.
+DURATION = 4.
 
 def indices_to_entropy(indices, time_axis=1, eps=1e-20, size=1024) -> torch.Tensor:
     n_step = indices.shape[time_axis]
@@ -96,13 +96,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs/scratch_mb_24khz_lr_1e-4/best/dac/weights.pth",
+        default="/N/slate/daripete/jstsp-dac/runs/__dummy/latest/dac/weights.pth",
         required=False,
     )
     parser.add_argument(
         "--output-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs/scratch_mb_24khz_lr_1e-4/audios",
+        default="/N/slate/daripete/jstsp-dac/runs/__dummy/audios",
         required=False,
     )
     args = parser.parse_args()

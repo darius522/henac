@@ -81,7 +81,7 @@ class DACSkip(nn.Module):
         latent_dim: int = 512,
         decoder_dim: int = 768,
         decoder_rates: List[int] = [1, 1, 1],
-        n_codebooks: int = 1,
+        n_codebooks: int = 8,
         codebook_size: int = 512,
         codebook_dim: Union[int, list] = 4,
         quantizer_dropout: bool = False,
@@ -118,17 +118,6 @@ class DACSkip(nn.Module):
         )
         self.sample_rate = sample_rate
         self.apply(init_weights)
-
-    def preprocess(self, audio_data, sample_rate):
-        if sample_rate is None:
-            sample_rate = self.sample_rate
-        assert sample_rate == self.sample_rate
-
-        length = audio_data.shape[-1]
-        right_pad = math.ceil(length / self.hop_length) * self.hop_length - length
-        audio_data = nn.functional.pad(audio_data, (0, right_pad))
-
-        return audio_data
 
     def encode(
         self,
@@ -230,11 +219,9 @@ class DACSkip(nn.Module):
                 Decoded audio data.
         """
         length = audio_data.shape[-1]
-        audio_data = self.preprocess(audio_data, sample_rate)
         z, codes, latents, commitment_loss, codebook_loss = self.encode(
             audio_data, n_quantizers
         )
-
         x = self.decode(z)
         return {
             "audio": x[..., :length],

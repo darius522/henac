@@ -5,12 +5,12 @@ MultibandResampler.cutoffs: [6000,12000,24000]
 # Model setup
 DAC.sample_rate: 24000
 DAC.encoder_dim: 64
-DAC.encoder_rates: [2, 4, 5, 8]
+DAC.encoder_rates: [1, 4, 5, 16]
 DAC.decoder_dim: 1536
 DAC.decoder_rates: 
-  - [8, 5, 2, 1]
-  - [5, 2, 2]
-  - [4, 2]
+  - [16, 5, 1, 1]
+  - [5, 2, 1]
+  - [4, 1]
 
 # Quantization
 DAC.n_codebooks: 20
@@ -40,7 +40,7 @@ amp: false
 val_batch_size: 32
 device: cuda
 num_iters: 400_000
-save_iters: [10_000, 50_000, 100_000, 200_000]
+save_iters: [5_000, 50_000, 100_000, 200_000]
 valid_freq: 1000
 sample_freq: 10000
 num_workers: 32

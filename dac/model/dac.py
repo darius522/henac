@@ -297,7 +297,6 @@ class DAC(BaseModel, CodecMixin):
         z, codes, latents, commitment_loss, codebook_loss, skips = self.encode(
             audio_data, n_quantizers
         )
-
         skips, skips_commitment_loss, skips_codebook_loss = self.autoencode_skips(skips)
         xs = self.multidecode(z, skips)
         return {
