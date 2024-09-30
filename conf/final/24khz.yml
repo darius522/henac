@@ -1,9 +1,9 @@
 # Model setup
 DAC.sample_rate: 24000
 DAC.encoder_dim: 64
-DAC.encoder_rates: [2, 4, 5, 8]
+DAC.encoder_rates: [1, 4, 5, 16]
 DAC.decoder_dim: 1536
-DAC.decoder_rates: [8, 5, 4, 2]
+DAC.decoder_rates: [16, 5, 4, 1]
 
 # Quantization
 DAC.n_codebooks: 32
@@ -30,7 +30,7 @@ ExponentialLR.gamma: 0.999996
 
 resume_ckpt: ''
 amp: false
-val_batch_size: 100
+val_batch_size: 1
 device: cuda
 num_iters: 400000
 save_iters: [10000, 50000, 100000, 200000]
@@ -70,11 +70,11 @@ MelSpectrogramLoss.clamp_eps: 1.0e-5
 MelSpectrogramLoss.mag_weight: 0.0
 
 # Data
-batch_size: 32
+batch_size: 1
 train/AudioDataset.duration: 0.38
 train/AudioDataset.n_examples: 10000000
 
-val/AudioDataset.duration: 5.0
+val/AudioDataset.duration: 0.38
 val/build_transform.augment_prob: 1.0
 val/AudioDataset.n_examples: 250
 
@@ -100,7 +100,7 @@ train/build_dataset.folders:
   #   - /data/russian_speech/
   #   - /data/spanish_speech/
   music_hq:
-    - /N/slate/daripete/descript-audio-codec/datasets/fma_train.csv
+    - /N/slate/daripete/jstsp-dac/datasets/fma_train.csv
   # music_uq:
   #   - /data/jamendo
   # general:
@@ -111,10 +111,10 @@ val/build_dataset.folders:
   # speech_hq:
   #   - /data/daps/val
   music_hq:
-    - /N/slate/daripete/descript-audio-codec/datasets/fma_valid.csv
+    - /N/slate/daripete/jstsp-dac/datasets/fma_valid.csv
   # general:
   #   - /data/audioset/data/eval_segments/
 
 test/build_dataset.folders:
   music_hq:
-    - /N/slate/daripete/descript-audio-codec/datasets/fma_test.csv
+    - /N/slate/daripete/jstsp-dac/fma_test.csv
