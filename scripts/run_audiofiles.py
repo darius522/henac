@@ -47,7 +47,6 @@ def main(args):
 
         x = model.preprocess(signal.audio_data, signal.sample_rate)
         z, codes, _, _, _, skips = model.encode(x)
-
         entropies.append(
             indices_to_entropy(codes.permute(0, 2, 1), time_axis=1, size=1024)
             .mean()
@@ -96,13 +95,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs/__dummy/latest/dac/weights.pth",
+        default="/N/slate/daripete/jstsp-dac/runs/safecheck_32cb/5k/dac/weights.pth",
         required=False,
     )
     parser.add_argument(
         "--output-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs/__dummy/audios",
+        default="/N/slate/daripete/jstsp-dac/runs/safecheck_32cb/audios",
         required=False,
     )
     args = parser.parse_args()

@@ -255,14 +255,15 @@ def train_loop(state, batch, accel, lambdas):
     full_band = AudioSignal(torch.stack(bands).sum(0), signals.sample_rate)
     with accel.autocast():
         out = state.generator(full_band.audio_data, signals.sample_rate)
-        full_recons = torch.stack(resample_bands(out['audio'], full_band.shape[-1])).sum(0)
-        full_recons = AudioSignal(full_recons, signals.sample_rate)
+        recons_bands = out['audio']
+        bands = resample_bands(bands, [rb.shape[-1] for rb in recons_bands])
         commitment_loss = out["vq/commitment_loss"]
         codebook_loss = out["vq/codebook_loss"]
 
     # Discriminator (full-band)
-    with accel.autocast():
-        output["adv/disc_loss"] = state.gan_loss.discriminator_loss(full_recons, full_band)
+        for recon, band in zip(recons_bands, bands):
+            recon, band = AudioSignal(recon, signals.sample_rate), AudioSignal(band, signals.sample_rate)
+            output["adv/disc_loss"] = output.setdefault("stft/loss", 0) + state.gan_loss.discriminator_loss(recon, band)
 
     state.optimizer_d.zero_grad()
     accel.backward(output["adv/disc_loss"])
@@ -274,8 +275,6 @@ def train_loop(state, batch, accel, lambdas):
     state.scheduler_d.step()
 
     # Generator (band-wise)
-    recons_bands = out['audio']
-    bands = resample_bands(bands, [rb.shape[-1] for rb in recons_bands])
     with accel.autocast():
         for recon, band in zip(recons_bands, bands):
             recon, band = AudioSignal(recon, signals.sample_rate), AudioSignal(band, signals.sample_rate)
@@ -361,12 +360,19 @@ def save_samples(state, val_idx, writer):
     bands = state.resampler(signals)
     full_band = AudioSignal(torch.stack(bands).sum(0), signals.sample_rate)
     out = state.generator(full_band.audio_data, full_band.sample_rate)
-    full_recons = torch.stack(resample_bands(out['audio'], full_band.shape[-1])).sum(0)
-    full_recons = AudioSignal(full_recons, signals.sample_rate)
+    bands_recons = torch.stack(resample_bands(out['audio'], full_band.shape[-1]))
+    full_recons = AudioSignal(bands_recons.sum(0), signals.sample_rate)
 
-    audio_dict = {"recons": full_recons}
+    audio_dict = {"recons_full": full_recons}
+    for i, band_recon in enumerate(bands_recons):
+        audio_dict[f"recons_band_{i}_24khz"] = AudioSignal(band_recon, signals.sample_rate) 
+    for i, (band_recon, sr) in enumerate(zip(out['audio'], [6_000, 12_000, 24_000])):
+        audio_dict[f"recons_band_{i}_orig"] = AudioSignal(band_recon, sr) 
+
     if state.tracker.step == 0:
-        audio_dict["signal"] = full_band
+        audio_dict["signal_full"] = full_band
+        for i, band in enumerate(bands):
+            audio_dict[f"signal_band_{i}"] = AudioSignal(band, signals.sample_rate)     
 
     for k, v in audio_dict.items():
         for nb in range(v.batch_size):

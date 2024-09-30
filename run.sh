@@ -20,5 +20,5 @@ CODE_ROOT="$PWD"
 
 CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun \
                     --nproc_per_node gpu scripts/train.py \
-                    --args.load conf/final/24khz_mb.yml \
-                    --save_path runs/safecheck/ 
+                    --args.load conf/final/24khz_mb_32cb.yml \
+                    --save_path runs/safecheck_32cb/ 
