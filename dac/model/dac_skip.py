@@ -81,7 +81,7 @@ class DACSkip(nn.Module):
         latent_dim: int = 512,
         decoder_dim: int = 768,
         decoder_rates: List[int] = [1, 1, 1],
-        n_codebooks: int = 8,
+        n_codebooks: int = 1,
         codebook_size: int = 512,
         codebook_dim: Union[int, list] = 4,
         quantizer_dropout: bool = False,
@@ -154,10 +154,10 @@ class DACSkip(nn.Module):
                 Number of samples in input audio
         """
         z = self.encoder(audio_data)
-        z, codes, latents, commitment_loss, codebook_loss = self.quantizer(
-            z, n_quantizers
-        )
-        return z, codes, latents, commitment_loss, codebook_loss
+        # z, codes, latents, commitment_loss, codebook_loss = self.quantizer(
+        #     z, n_quantizers
+        # )
+        return z#, codes, latents, commitment_loss, codebook_loss
 
     def decode(self, z: torch.Tensor):
         """Decode given latent codes and return audio data
@@ -219,15 +219,15 @@ class DACSkip(nn.Module):
                 Decoded audio data.
         """
         length = audio_data.shape[-1]
-        z, codes, latents, commitment_loss, codebook_loss = self.encode(
+        z = self.encode(
             audio_data, n_quantizers
         )
         x = self.decode(z)
         return {
             "audio": x[..., :length],
             "z": z,
-            "codes": codes,
-            "latents": latents,
-            "vq/commitment_loss": commitment_loss,
-            "vq/codebook_loss": codebook_loss,
+            "codes": None,
+            "latents": None,
+            "vq/commitment_loss": torch.tensor([0.]),
+            "vq/codebook_loss": torch.tensor([0.]),
         }

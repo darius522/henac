@@ -139,11 +139,11 @@ class DAC(BaseModel, CodecMixin):
         for n in range(num_skips):
             skip_dim = (latent_dim // 2) // (n + 1)
             blind_us_dim = self.multidecoders[-1].channels // 2
-            # self.skip_aes.append(
-            #     DACSkip(
-            #         encoder_dim=skip_dim, latent_dim=skip_dim, codebook_size=skip_dim
-            #     )
-            # )
+            self.skip_aes.append(
+                DACSkip(
+                    encoder_dim=skip_dim, latent_dim=skip_dim, codebook_size=skip_dim
+                )
+            )
             self.multidecoders.append(
                 Decoder(
                     skip_dim + blind_us_dim,
@@ -297,15 +297,15 @@ class DAC(BaseModel, CodecMixin):
         z, codes, latents, commitment_loss, codebook_loss, skips = self.encode(
             audio_data, n_quantizers
         )
-        #skips, skips_commitment_loss, skips_codebook_loss = self.autoencode_skips(skips)
+        skips, skips_commitment_loss, skips_codebook_loss = self.autoencode_skips(skips)
         xs = self.multidecode(z, skips)
         return {
             "audio": [x[..., :length] for x in xs],
             "z": z,
             "codes": codes,
             "latents": latents,
-            "vq/commitment_loss": commitment_loss,# + skips_commitment_loss.sum(),
-            "vq/codebook_loss": codebook_loss,# + skips_codebook_loss.sum(),
+            "vq/commitment_loss": commitment_loss + skips_commitment_loss.sum(),
+            "vq/codebook_loss": codebook_loss + skips_codebook_loss.sum(),
         }
 
 
