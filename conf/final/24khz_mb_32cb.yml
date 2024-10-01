@@ -40,7 +40,7 @@ amp: false
 val_batch_size: 32
 device: cuda
 num_iters: 400_000
-save_iters: [10_000, 50_000, 100_000, 200_000]
+save_iters: [10_000, 20_000, 100_000, 200_000]
 valid_freq: 10
 sample_freq: 10000
 num_workers: 32
