@@ -10,7 +10,7 @@
 #SBATCH --gres=gpu:4
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=10
-#SBATCH --time=12:00:00
+#SBATCH --time=48:00:00
 #SBATCH --mem=40G
 #SBATCH -A r00105
 
@@ -21,4 +21,4 @@ CODE_ROOT="$PWD"
 CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun \
                     --nproc_per_node gpu scripts/train.py \
                     --args.load conf/final/24khz_mb_32cb.yml \
-                    --save_path runs/mb_skipnoquant/ 
+                    --save_path runs/safecheck_32cb/ 

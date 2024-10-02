@@ -261,12 +261,12 @@ def train_loop(state, batch, accel, lambdas):
         codebook_loss = out["vq/codebook_loss"]
 
     # Discriminator (full-band)
-        for i, (recon, band) in enumerate(zip(recons_bands, bands)):
+        for recon, band in zip(recons_bands, bands):
             recon, band = AudioSignal(recon, signals.sample_rate), AudioSignal(band, signals.sample_rate)
-            output[f"adv/disc_loss_{i}"] = output.setdefault("stft/loss", 0) + state.gan_loss.discriminator_loss(recon, band)
+            output["adv/disc_loss"] = output.setdefault("stft/loss", 0) + state.gan_loss.discriminator_loss(recon, band)
 
     state.optimizer_d.zero_grad()
-    accel.backward(sum([v for k, v in output.items() if 'disc_loss' in k]))
+    accel.backward(output["adv/disc_loss"])
     accel.scaler.unscale_(state.optimizer_d)
     output["other/grad_norm_d"] = torch.nn.utils.clip_grad_norm_(
         state.discriminator.parameters(), 10.0
@@ -276,29 +276,27 @@ def train_loop(state, batch, accel, lambdas):
 
     # Generator (band-wise)
     with accel.autocast():
-        for i, (recon, band) in enumerate(zip(recons_bands, bands)):
+        for recon, band in zip(recons_bands, bands):
             recon, band = AudioSignal(recon, signals.sample_rate), AudioSignal(band, signals.sample_rate)
-            output[f"stft/loss_{i}"] = state.stft_loss(
+            output["stft/loss"] = output.setdefault("stft/loss", 0) + state.stft_loss(
                 recon, band
             )
-            output[f"mel/loss_{i}"] = state.mel_loss(
+            output["mel/loss"] = output.setdefault("mel/loss", 0) + state.mel_loss(
                 recon, band
             )
-            output[f"waveform/loss_{i}"] = state.waveform_loss(recon, band)
+            output["waveform/loss"] = output.setdefault(
+                "waveform/loss", 0
+            ) + state.waveform_loss(recon, band)
             (
                 gen_loss,
                 feat_loss,
             ) = state.gan_loss.generator_loss(recon, band)
-            output[f"adv/gen_loss_{i}"] = gen_loss
-            output[f"adv/feat_loss_{i}"] = feat_loss
+            output["adv/gen_loss"] = output.setdefault("adv/gen_loss", 0) + gen_loss
+            output["adv/feat_loss"] = output.setdefault("adv/feat_loss", 0) + feat_loss
 
         output["vq/commitment_loss"] = commitment_loss.sum()
         output["vq/codebook_loss"] = codebook_loss.sum()
-        output["loss"] = torch.tensor([0.], device='cuda')
-        for k, v in lambdas.items():
-            for kk, vv in output.items():
-                if k in kk:
-                    output["loss"] += (v * vv)
+        output["loss"] = sum([v * output[k] for k, v in lambdas.items() if k in output])
 
     state.optimizer_g.zero_grad()
     accel.backward(output["loss"])
