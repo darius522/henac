@@ -107,7 +107,7 @@ class DAC(BaseModel, CodecMixin):
         codebook_size: int = 1024,
         codebook_dim: Union[int, list] = 8,
         quantizer_dropout: bool = False,
-        sample_rate: int = 44100,
+        sample_rate: int = 24000,
         num_skips: int = 2,
     ):
         super().__init__()
@@ -141,7 +141,10 @@ class DAC(BaseModel, CodecMixin):
             blind_us_dim = self.multidecoders[-1].channels // 2
             self.skip_aes.append(
                 DACSkip(
-                    encoder_dim=skip_dim, latent_dim=skip_dim, codebook_size=skip_dim
+                    encoder_dim=skip_dim,
+                    latent_dim=skip_dim,
+                    codebook_size=codebook_size,
+                    quantizer_dropout=quantizer_dropout,
                 )
             )
             self.multidecoders.append(

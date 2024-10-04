@@ -107,6 +107,7 @@ class ResidualVectorQuantize(nn.Module):
         codebook_size: int = 1024,
         codebook_dim: Union[int, list] = 8,
         quantizer_dropout: float = 0.0,
+        name: str = 'dac',
     ):
         super().__init__()
         if isinstance(codebook_dim, int):
@@ -123,6 +124,7 @@ class ResidualVectorQuantize(nn.Module):
             ]
         )
         self.quantizer_dropout = quantizer_dropout
+        self.name = name
 
     def forward(self, z, n_quantizers: int = None):
         """Quantized the input tensor using a fixed set of `n` codebooks and returns
@@ -173,7 +175,7 @@ class ResidualVectorQuantize(nn.Module):
         for i, quantizer in enumerate(self.quantizers):
             if self.training is False and i >= n_quantizers:
                 break
-
+        
             z_q_i, commitment_loss_i, codebook_loss_i, indices_i, z_e_i = quantizer(
                 residual
             )
@@ -184,7 +186,6 @@ class ResidualVectorQuantize(nn.Module):
             )
             z_q = z_q + z_q_i * mask[:, None, None]
             residual = residual - z_q_i
-
             # Sum losses
             commitment_loss += (commitment_loss_i * mask).mean()
             codebook_loss += (codebook_loss_i * mask).mean()

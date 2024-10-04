@@ -40,16 +40,16 @@ amp: false
 val_batch_size: 32
 device: cuda
 num_iters: 400_000
-save_iters: [5_000, 50_000, 100_000, 200_000]
+save_iters: [5_000, 10_000, 15_000, 200_000]
 valid_freq: 1000
 sample_freq: 10000
-num_workers: 32
+num_workers: 10
 val_idx: [0, 1, 2, 3, 4, 5, 6, 7]
 seed: 0
 lambdas:
   mel/loss: 15.0
-  adv/feat_loss: 2.0
-  adv/gen_loss: 1.0
+  adv/feat_loss: 0.0
+  adv/gen_loss: 0.0
   vq/commitment_loss: 0.25
   vq/codebook_loss: 1.0
 
@@ -107,7 +107,7 @@ train/build_dataset.folders:
   #   - /data/russian_speech/
   #   - /data/spanish_speech/
   music_hq:
-    - /N/slate/daripete/jstsp-dac/datasets/fma_train.csv
+    - /home/daripete/jstsp-dac/datasets/fma_train.csv
   # music_uq:
   #   - /data/jamendo
   # general:
@@ -118,10 +118,10 @@ val/build_dataset.folders:
   # speech_hq:
   #   - /data/daps/val
   music_hq:
-    - /N/slate/daripete/jstsp-dac/datasets/fma_valid.csv
+    - /home/daripete/jstsp-dac/datasets/fma_valid.csv
   # general:
   #   - /data/audioset/data/eval_segments/
 
 test/build_dataset.folders:
   music_hq:
-    - /N/slate/daripete/jstsp-dac/datasets/fma_test.csv
+    - /home/daripete/jstsp-dac/datasets/fma_test.csv

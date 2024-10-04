@@ -1,6 +1,6 @@
 import sys
 
-sys.path.append("/N/slate/daripete/jstsp-dac")
+sys.path.append("/home/daripete/jstsp-dac")
 
 import dac
 from audiotools import AudioSignal
@@ -18,7 +18,7 @@ from torchmetrics.audio import ScaleInvariantSignalNoiseRatio
 
 import argparse, os
 
-DURATION = 4.
+DURATION = 2.
 
 def indices_to_entropy(indices, time_axis=1, eps=1e-20, size=1024) -> torch.Tensor:
     n_step = indices.shape[time_axis]
@@ -31,7 +31,7 @@ def main(args):
     # Download a model
     # model_path = dac.utils.download(model_type="24khz")
     model = dac.DAC.load(args.model_path)
-    model.to("cuda")
+    model.to("cuda:1")
 
     dataset = pd.read_csv(args.dataset)
     entropies, snrs = [], []
@@ -89,19 +89,19 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/datasets/fma_test_subset.csv",
+        default="/home/daripete/jstsp-dac/datasets/fma_test_subset.csv",
         required=False,
     )
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs/safecheck_32cb/5k/dac/weights.pth",
+        default="/home/daripete/jstsp-dac/runs/quant_1024_dropout=05_nocom/best/dac/weights.pth",
         required=False,
     )
     parser.add_argument(
         "--output-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs/safecheck_32cb/audios",
+        default="/home/daripete/jstsp-dac/runs/quant_1024_dropout=05_nocom/audios",
         required=False,
     )
     args = parser.parse_args()
