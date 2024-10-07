@@ -19,7 +19,7 @@ DAC.codebook_dim: 8
 DAC.quantizer_dropout: 0.5
 
 # Discriminator
-Discriminator.sample_rate: 24000
+Discriminator.sample_rate: [6000,12000,24000]
 Discriminator.rates: []
 Discriminator.periods: [2, 3, 5, 7, 11]
 Discriminator.fft_sizes: [2048, 1024, 512]
@@ -37,7 +37,7 @@ ExponentialLR.gamma: 0.999996
 
 resume_ckpt: ''
 amp: false
-val_batch_size: 32
+val_batch_size: 16
 device: cuda
 num_iters: 400_000
 save_iters: [5_000, 10_000, 15_000, 200_000]
@@ -48,8 +48,12 @@ val_idx: [0, 1, 2, 3, 4, 5, 6, 7]
 seed: 0
 lambdas:
   mel/loss: 15.0
-  adv/feat_loss: 0.0
-  adv/gen_loss: 0.0
+  adv/feat_loss_0: 2.0
+  adv/feat_loss_1: 2.0
+  adv/feat_loss_2: 2.0
+  adv/gen_loss_0: 1.0
+  adv/gen_loss_1: 1.0
+  adv/gen_loss_2: 1.0
   vq/commitment_loss: 0.25
   vq/codebook_loss: 1.0
 
@@ -77,7 +81,7 @@ MelSpectrogramLoss.clamp_eps: 1.0e-5
 MelSpectrogramLoss.mag_weight: 0.0
 
 # Data
-batch_size: 32
+batch_size: 16
 train/AudioDataset.duration: 0.38
 train/AudioDataset.n_examples: 10000000
 
@@ -107,7 +111,7 @@ train/build_dataset.folders:
   #   - /data/russian_speech/
   #   - /data/spanish_speech/
   music_hq:
-    - /home/daripete/jstsp-dac/datasets/fma_train.csv
+    - /home/daripete/jstsp-dac/datasets/fma_train_small.csv
   # music_uq:
   #   - /data/jamendo
   # general:

@@ -163,7 +163,7 @@ def load(
     tracker.print(discriminator)
 
     generator = accel.prepare_model(generator, find_unused_parameters=True)
-    discriminator = accel.prepare_model(discriminator)
+    discriminator = accel.prepare_model(discriminator, find_unused_parameters=True)
 
     with argbind.scope(args, "generator"):
         optimizer_g = AdamW(generator.parameters(), use_zero=accel.use_ddp)
@@ -261,9 +261,9 @@ def train_loop(state, batch, accel, lambdas):
         codebook_loss = out["vq/codebook_loss"]
 
     # Discriminator (full-band)
-        for i, (recon, band) in enumerate(zip(recons_bands, bands)):
+        for i, (recon, band, sr) in enumerate(zip(recons_bands, bands, state.resampler.cutoffs)):
             recon, band = AudioSignal(recon, signals.sample_rate), AudioSignal(band, signals.sample_rate)
-            output[f"adv/disc_loss_{i}"] = output.setdefault("stft/loss", 0) + state.gan_loss.discriminator_loss(recon, band)
+            output[f"adv/disc_loss_{i}"] = output.setdefault("stft/loss", 0) + state.gan_loss.discriminator_loss(recon, band, key=str(sr))
 
     state.optimizer_d.zero_grad()
     accel.backward(sum([v for k, v in output.items() if 'disc_loss' in k]))
@@ -276,7 +276,7 @@ def train_loop(state, batch, accel, lambdas):
 
     # Generator (band-wise)
     with accel.autocast():
-        for i, (recon, band) in enumerate(zip(recons_bands, bands)):
+        for i, (recon, band, sr) in enumerate(zip(recons_bands, bands, state.resampler.cutoffs)):
             recon, band = AudioSignal(recon, signals.sample_rate), AudioSignal(band, signals.sample_rate)
             output[f"stft/loss_{i}"] = state.stft_loss(
                 recon, band
@@ -288,7 +288,7 @@ def train_loop(state, batch, accel, lambdas):
             (
                 gen_loss,
                 feat_loss,
-            ) = state.gan_loss.generator_loss(recon, band)
+            ) = state.gan_loss.generator_loss(recon, band, key=str(sr))
             output[f"adv/gen_loss_{i}"] = gen_loss
             output[f"adv/feat_loss_{i}"] = feat_loss
 

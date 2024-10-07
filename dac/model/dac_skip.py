@@ -81,7 +81,7 @@ class DACSkip(nn.Module):
         latent_dim: int = 512,
         decoder_dim: int = 768,
         decoder_rates: List[int] = [1, 1, 1],
-        n_codebooks: int = 8,
+        n_codebooks: int = 32,
         codebook_size: int = 1024,
         codebook_dim: Union[int, list] = 8,
         quantizer_dropout: float = 0.0,
@@ -229,6 +229,6 @@ class DACSkip(nn.Module):
             "z": z,
             "codes": codes,
             "latents": latents,
-            "vq/commitment_loss": torch.tensor([0.]),#commitment_loss,
-            "vq/codebook_loss": torch.tensor([0.]),#codebook_loss,
+            "vq/commitment_loss": commitment_loss,
+            "vq/codebook_loss": codebook_loss,
         }

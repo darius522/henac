@@ -339,13 +339,13 @@ class GANLoss(nn.Module):
         super().__init__()
         self.discriminator = discriminator
 
-    def forward(self, fake, real):
-        d_fake = self.discriminator(fake.audio_data)
-        d_real = self.discriminator(real.audio_data)
+    def forward(self, fake, real, key):
+        d_fake = self.discriminator(fake.audio_data, key)
+        d_real = self.discriminator(real.audio_data, key)
         return d_fake, d_real
 
-    def discriminator_loss(self, fake, real):
-        d_fake, d_real = self.forward(fake.clone().detach(), real)
+    def discriminator_loss(self, fake, real, key):
+        d_fake, d_real = self.forward(fake.clone().detach(), real, key)
 
         loss_d = 0
         for x_fake, x_real in zip(d_fake, d_real):
@@ -353,8 +353,8 @@ class GANLoss(nn.Module):
             loss_d += torch.mean((1 - x_real[-1]) ** 2)
         return loss_d
 
-    def generator_loss(self, fake, real):
-        d_fake, d_real = self.forward(fake, real)
+    def generator_loss(self, fake, real, key):
+        d_fake, d_real = self.forward(fake, real, key)
 
         loss_g = 0
         for x_fake in d_fake:

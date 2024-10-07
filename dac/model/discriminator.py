@@ -1,3 +1,4 @@
+from typing import Union
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -178,7 +179,7 @@ class Discriminator(ml.BaseModel):
         rates: list = [],
         periods: list = [2, 3, 5, 7, 11],
         fft_sizes: list = [2048, 1024, 512],
-        sample_rate: int = 44100,
+        sample_rate: Union[int,list] = 44100,
         bands: list = BANDS,
     ):
         """Discriminator that combines multiple discriminators.
@@ -198,11 +199,14 @@ class Discriminator(ml.BaseModel):
             Bands to run MRD at, by default `BANDS`
         """
         super().__init__()
-        discs = []
-        discs += [MPD(p) for p in periods]
-        discs += [MSD(r, sample_rate=sample_rate) for r in rates]
-        discs += [MRD(f, sample_rate=sample_rate, bands=bands) for f in fft_sizes]
-        self.discriminators = nn.ModuleList(discs)
+        self.sample_rate = sample_rate
+        self.discriminators = torch.nn.ModuleDict({})
+        for sr in sample_rate:
+            discs = []
+            discs += [MPD(p) for p in periods]
+            discs += [MSD(r, sample_rate=sr) for r in rates]
+            discs += [MRD(f, sample_rate=sr, bands=bands) for f in fft_sizes]
+            self.discriminators[str(sr)] = nn.ModuleList(discs)         
 
     def preprocess(self, y):
         # Remove DC offset
@@ -211,9 +215,9 @@ class Discriminator(ml.BaseModel):
         y = 0.8 * y / (y.abs().max(dim=-1, keepdim=True)[0] + 1e-9)
         return y
 
-    def forward(self, x):
+    def forward(self, x, key):
         x = self.preprocess(x)
-        fmaps = [d(x) for d in self.discriminators]
+        fmaps = [d(x) for d in self.discriminators[key]]
         return fmaps
 
 
