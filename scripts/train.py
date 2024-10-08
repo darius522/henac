@@ -1,6 +1,6 @@
 import os
 import sys
-sys.path.append('/home/daripete/jstsp-dac')
+sys.path.append(os.getcwd())
 
 import warnings
 from dataclasses import dataclass
@@ -138,32 +138,44 @@ def load(
     save_path: str,
     resume: str = '',
     tag: str = "latest",
-    load_weights: bool = False,
+    load_weights: bool = True,
 ):
     generator, g_extra = None, {}
     discriminator, d_extra = None, {}
 
-    if resume != '':
-        kwargs = {
-            "folder": resume,#f"{save_path}/{tag}",
-            "map_location": "cpu",
-            "package": not load_weights,
-        }
-        tracker.print(f"Resuming from {str(Path('.').absolute())}/{kwargs['folder']}")
-        if (Path(kwargs["folder"]) / "dac").exists():
-            generator, g_extra = DAC.load_from_folder(**kwargs)
-        if (Path(kwargs["folder"]) / "discriminator").exists():
-            discriminator, d_extra = Discriminator.load_from_folder(**kwargs)
+    # if resume != '':
+    #     kwargs = {
+    #         "folder": resume,#f"{save_path}/{tag}",
+    #         "map_location": "cuda",
+    #         "package": not load_weights,
+    #     }
+    #     tracker.print(f"Resuming from {str(Path('.').absolute())}/{kwargs['folder']}")
+    #     if (Path(kwargs["folder"]) / "dac").exists():
+    #         generator, g_extra = DAC.load_from_folder(**kwargs)
+    #         import pdb; pdb.set_trace()
+    #     if (Path(kwargs["folder"]) / "discriminator").exists():
+    #         discriminator, d_extra = Discriminator.load_from_folder(**kwargs)
 
     generator = DAC() if generator is None else generator
     discriminator = Discriminator() if discriminator is None else discriminator
+    if resume != "" and os.path.exists(os.path.join(resume, "dac/weights.pth")):
+        generator.load_state_dict(
+            torch.load(os.path.join(resume, "dac/weights.pth"), weights_only=True)[
+                "state_dict"
+            ],
+            strict=False,
+        )
+    if resume != "" and os.path.exists(
+        os.path.join(resume, "discriminator/weights.pth")
+    ):
+        discriminator.load_state_dict(torch.load(os.path.join(resume, "discriminator/weights.pth"), weights_only=True)["state_dict"],strict=False)
     resampler = MultibandResampler()
 
     tracker.print(generator)
     tracker.print(discriminator)
 
-    generator = accel.prepare_model(generator, find_unused_parameters=True)
-    discriminator = accel.prepare_model(discriminator, find_unused_parameters=True)
+    generator = accel.prepare_model(generator)
+    discriminator = accel.prepare_model(discriminator)
 
     with argbind.scope(args, "generator"):
         optimizer_g = AdamW(generator.parameters(), use_zero=accel.use_ddp)
@@ -227,7 +239,7 @@ def val_loop(batch, state, accel):
     full_band = AudioSignal(torch.stack(bands).sum(0), signals.sample_rate)
 
     out = state.generator(full_band.audio_data, signals.sample_rate)
-    full_recons = torch.stack(resample_bands(out['audio'], full_band.shape[-1])).sum(0)
+    full_recons = torch.stack(out['audio']).sum(0)
     full_recons = AudioSignal(full_recons, signals.sample_rate)
 
     return {
@@ -256,7 +268,6 @@ def train_loop(state, batch, accel, lambdas):
     with accel.autocast():
         out = state.generator(full_band.audio_data, signals.sample_rate)
         recons_bands = out['audio']
-        bands = resample_bands(bands, [rb.shape[-1] for rb in recons_bands])
         commitment_loss = out["vq/commitment_loss"]
         codebook_loss = out["vq/codebook_loss"]
 
@@ -423,8 +434,7 @@ def train(
     tracker = Tracker(
         writer=writer, log_file=f"{save_path}/log.txt", rank=accel.local_rank
     )
-
-    state = load(args, accel, tracker, save_path)
+    state = load(args, accel, tracker, save_path, resume=args['resume_ckpt'], load_weights=True)
     train_dataloader = accel.prepare_dataloader(
         state.train_data,
         start_idx=state.tracker.step * batch_size,

@@ -1,6 +1,6 @@
+import os
 import sys
-
-sys.path.append("/home/daripete/jstsp-dac")
+sys.path.append(os.getcwd())
 
 import dac
 from audiotools import AudioSignal
@@ -16,7 +16,7 @@ from julius import resample_frac
 
 from torchmetrics.audio import ScaleInvariantSignalNoiseRatio
 
-import argparse, os
+import argparse
 
 DURATION = 1.
 

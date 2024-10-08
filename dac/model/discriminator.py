@@ -204,8 +204,8 @@ class Discriminator(ml.BaseModel):
         for sr in sample_rate:
             discs = []
             discs += [MPD(p) for p in periods]
-            discs += [MSD(r, sample_rate=sr) for r in rates]
-            discs += [MRD(f, sample_rate=sr, bands=bands) for f in fft_sizes]
+            discs += [MSD(r, sample_rate=24_000) for r in rates]
+            discs += [MRD(f, sample_rate=24_000, bands=bands) for f in fft_sizes]
             self.discriminators[str(sr)] = nn.ModuleList(discs)         
 
     def preprocess(self, y):
