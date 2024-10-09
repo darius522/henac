@@ -32,7 +32,7 @@ Discriminator.bands:
 
 # Optimization
 AdamW.betas: [0.8, 0.99]
-AdamW.lr: 0.0001
+AdamW.lr: 0.00001
 ExponentialLR.gamma: 0.999996
 
 resume_ckpt: /home/daripete/jstsp-dac/ckpt/baseline/
@@ -111,7 +111,7 @@ train/build_dataset.folders:
   #   - /data/russian_speech/
   #   - /data/spanish_speech/
   music_hq:
-    - /home/daripete/jstsp-dac/datasets/fma_train.csv
+    - /home/daripete/jstsp-dac/datasets/fma_train_small.csv
   # music_uq:
   #   - /data/jamendo
   # general:

@@ -18,7 +18,7 @@ from torchmetrics.audio import ScaleInvariantSignalNoiseRatio
 
 import argparse
 
-DURATION = 1.
+DURATION = 5.
 
 def indices_to_entropy(indices, time_axis=1, eps=1e-20, size=1024) -> torch.Tensor:
     n_step = indices.shape[time_axis]
@@ -31,7 +31,7 @@ def main(args):
     # Download a model
     # model_path = dac.utils.download(model_type="24khz")
     model = dac.DAC.load(args.model_path)
-    model.to("cuda:7")
+    model.to("cuda:1")
 
     dataset = pd.read_csv(args.dataset)
     entropies, snrs = [], []
@@ -58,10 +58,10 @@ def main(args):
         y: AudioSignal
         skips, _, _ = model.autoencode_skips(skips)
         y = model.multidecode(z, skips)
-        y = [
-            resample_frac(sig, int(sig.shape[-1] // DURATION), signal.sample_rate)[..., : int(signal.sample_rate * DURATION)]
-            for sig in y
-        ]
+        # y = [
+        #     resample_frac(sig, int(sig.shape[-1] // DURATION), signal.sample_rate)[..., : int(signal.sample_rate * DURATION)]
+        #     for sig in y
+        # ]
         y = torch.stack(y).sum(0)
 
         y, signal = y.to("cpu").detach(), signal.audio_data.to("cpu").detach()
@@ -95,13 +95,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/home/daripete/jstsp-dac/runs/quant_1024_dropout=05_multidisc_32cb_hbonly/latest/dac/weights.pth",
+        default="/home/daripete/jstsp-dac/runs/stage2_smalltrain_freezecb/latest/dac/weights.pth",
         required=False,
     )
     parser.add_argument(
         "--output-path",
         type=str,
-        default="/home/daripete/jstsp-dac/runs/quant_1024_dropout=05_multidisc_32cb_hbonly/audios",
+        default="/home/daripete/jstsp-dac/runs/stage2_smalltrain_freezecb/audios",
         required=False,
     )
     args = parser.parse_args()

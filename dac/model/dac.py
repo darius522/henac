@@ -52,7 +52,7 @@ class Encoder(nn.Module):
         for i, m in enumerate(self.block):
             x = m(x)
             if isinstance(m, EncoderBlock):
-                skips.append(x)
+                skips.append(x.clone())
         skips = list(reversed(skips))
         return x, skips[1 : self.num_skips + 1]
 
@@ -145,6 +145,7 @@ class DAC(BaseModel, CodecMixin):
                     latent_dim=skip_dim,
                     codebook_size=codebook_size,
                     quantizer_dropout=quantizer_dropout,
+                    codebook_dim=256
                 )
             )
             self.multidecoders.append(

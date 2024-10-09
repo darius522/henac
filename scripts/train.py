@@ -143,19 +143,6 @@ def load(
     generator, g_extra = None, {}
     discriminator, d_extra = None, {}
 
-    # if resume != '':
-    #     kwargs = {
-    #         "folder": resume,#f"{save_path}/{tag}",
-    #         "map_location": "cuda",
-    #         "package": not load_weights,
-    #     }
-    #     tracker.print(f"Resuming from {str(Path('.').absolute())}/{kwargs['folder']}")
-    #     if (Path(kwargs["folder"]) / "dac").exists():
-    #         generator, g_extra = DAC.load_from_folder(**kwargs)
-    #         import pdb; pdb.set_trace()
-    #     if (Path(kwargs["folder"]) / "discriminator").exists():
-    #         discriminator, d_extra = Discriminator.load_from_folder(**kwargs)
-
     generator = DAC() if generator is None else generator
     discriminator = Discriminator() if discriminator is None else discriminator
     if resume != "" and os.path.exists(os.path.join(resume, "dac/weights.pth")):
@@ -165,16 +152,36 @@ def load(
             ],
             strict=False,
         )
+        trainable_params = [
+            "skip_aes",
+            "multidecoders.1",
+            "multidecoders.2",
+        ]
+        for name, param in generator.named_parameters():
+            if not any([p in name for p in trainable_params]):
+                print(f"Exclude parameter {name} from generator training.")
+                param.requires_grad = False
+            else:
+                print(f"Include parameter {name} from generator training.")
+
     if resume != "" and os.path.exists(
         os.path.join(resume, "discriminator/weights.pth")
     ):
         discriminator.load_state_dict(torch.load(os.path.join(resume, "discriminator/weights.pth"), weights_only=True)["state_dict"],strict=False)
+        trainable_params = ["discriminators.12000", "discriminators.24000"]
+        for name, param in discriminator.named_parameters():
+            if not any([p in name for p in trainable_params]):
+                print(f"Exclude parameter {name} from discriminator training.")
+                param.requires_grad = False
+            else:
+                print(f"Include parameter {name} from discriminator training.")
+        
     resampler = MultibandResampler()
 
     tracker.print(generator)
     tracker.print(discriminator)
 
-    generator = accel.prepare_model(generator)
+    generator = accel.prepare_model(generator, find_unused_parameters=True)
     discriminator = accel.prepare_model(discriminator)
 
     with argbind.scope(args, "generator"):
