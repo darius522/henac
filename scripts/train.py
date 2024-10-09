@@ -128,6 +128,7 @@ class State:
     tracker: Tracker
     
     resampler: MultibandResampler
+    bands_to_train: list
 
 
 @argbind.bind(without_prefix=True)
@@ -135,11 +136,9 @@ def load(
     args,
     accel: ml.Accelerator,
     tracker: Tracker,
-    save_path: str,
     resume: str = '',
-    tag: str = "latest",
-    load_weights: bool = True,
 ):
+    bands_to_train = args['bands_to_train']
     generator, g_extra = None, {}
     discriminator, d_extra = None, {}
 
@@ -152,13 +151,14 @@ def load(
             ],
             strict=False,
         )
-        trainable_params = [
-            "skip_aes",
-            "multidecoders.1",
-            "multidecoders.2",
-        ]
+        trainable_params = {
+            1: ["skip_aes.0", "multidecoders.1"],
+            2: ["skip_aes.1", "multidecoders.2"],
+        }
+        bands_params = []
+        _ = [bands_params.extend(trainable_params[b]) for b in bands_to_train]
         for name, param in generator.named_parameters():
-            if not any([p in name for p in trainable_params]):
+            if not any([p in name for p in bands_params]):
                 print(f"Exclude parameter {name} from generator training.")
                 param.requires_grad = False
             else:
@@ -167,22 +167,32 @@ def load(
     if resume != "" and os.path.exists(
         os.path.join(resume, "discriminator/weights.pth")
     ):
-        discriminator.load_state_dict(torch.load(os.path.join(resume, "discriminator/weights.pth"), weights_only=True)["state_dict"],strict=False)
-        trainable_params = ["discriminators.12000", "discriminators.24000"]
+        discriminator.load_state_dict(
+            torch.load(
+                os.path.join(resume, "discriminator/weights.pth"), weights_only=True
+            )["state_dict"],
+            strict=False,
+        )
+        trainable_params = {
+            1: ["discriminators.12000"],
+            2: ["discriminators.24000"],
+        }
+        bands_params = []
+        _ = [bands_params.extend(trainable_params[b]) for b in bands_to_train]
         for name, param in discriminator.named_parameters():
-            if not any([p in name for p in trainable_params]):
+            if not any([p in name for p in bands_params]):
                 print(f"Exclude parameter {name} from discriminator training.")
                 param.requires_grad = False
             else:
                 print(f"Include parameter {name} from discriminator training.")
-        
+
     resampler = MultibandResampler()
 
     tracker.print(generator)
     tracker.print(discriminator)
 
     generator = accel.prepare_model(generator, find_unused_parameters=True)
-    discriminator = accel.prepare_model(discriminator)
+    discriminator = accel.prepare_model(discriminator, find_unused_parameters=True)
 
     with argbind.scope(args, "generator"):
         optimizer_g = AdamW(generator.parameters(), use_zero=accel.use_ddp)
@@ -228,7 +238,8 @@ def load(
         tracker=tracker,
         train_data=train_data,
         val_data=val_data,
-        resampler=resampler
+        resampler=resampler,
+        bands_to_train=bands_to_train,
     )
 
 
@@ -280,8 +291,12 @@ def train_loop(state, batch, accel, lambdas):
 
     # Discriminator (full-band)
         for i, (recon, band, sr) in enumerate(zip(recons_bands, bands, state.resampler.cutoffs)):
+            if not i in state.bands_to_train:
+                continue
             recon, band = AudioSignal(recon, signals.sample_rate), AudioSignal(band, signals.sample_rate)
-            output[f"adv/disc_loss_{i}"] = output.setdefault("stft/loss", 0) + state.gan_loss.discriminator_loss(recon, band, key=str(sr))
+            output[f"adv/disc_loss_{i}"] = state.gan_loss.discriminator_loss(recon, band, key=str(sr))
+            output[f"vq/commitment_loss_{i}"] = commitment_loss[i]
+            output[f"vq/codebook_loss_{i}"] = codebook_loss[i]
 
     state.optimizer_d.zero_grad()
     accel.backward(sum([v for k, v in output.items() if 'disc_loss' in k]))
@@ -295,6 +310,8 @@ def train_loop(state, batch, accel, lambdas):
     # Generator (band-wise)
     with accel.autocast():
         for i, (recon, band, sr) in enumerate(zip(recons_bands, bands, state.resampler.cutoffs)):
+            if not i in state.bands_to_train:
+                continue
             recon, band = AudioSignal(recon, signals.sample_rate), AudioSignal(band, signals.sample_rate)
             output[f"stft/loss_{i}"] = state.stft_loss(
                 recon, band
@@ -310,8 +327,6 @@ def train_loop(state, batch, accel, lambdas):
             output[f"adv/gen_loss_{i}"] = gen_loss
             output[f"adv/feat_loss_{i}"] = feat_loss
 
-        output["vq/commitment_loss"] = commitment_loss.sum()
-        output["vq/codebook_loss"] = codebook_loss.sum()
         output["loss"] = torch.tensor([0.], device='cuda')
         for k, v in lambdas.items():
             for kk, vv in output.items():

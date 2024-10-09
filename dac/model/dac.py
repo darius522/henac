@@ -227,8 +227,8 @@ class DAC(BaseModel, CodecMixin):
         outputs = [ae(skip) for skip, ae in zip(skips, self.skip_aes)]
         return (
             [o["audio"] for o in outputs],
-            torch.stack([o["vq/commitment_loss"] for o in outputs]).sum(),
-            torch.stack([o["vq/codebook_loss"] for o in outputs]).sum(),
+            [o["vq/commitment_loss"] for o in outputs],
+            [o["vq/codebook_loss"] for o in outputs],
         )
 
     def multidecode(self, z: torch.Tensor, skips: List):
@@ -308,8 +308,8 @@ class DAC(BaseModel, CodecMixin):
             "z": z,
             "codes": codes,
             "latents": latents,
-            "vq/commitment_loss": commitment_loss + skips_commitment_loss.sum(),
-            "vq/codebook_loss": codebook_loss + skips_codebook_loss.sum(),
+            "vq/commitment_loss": [commitment_loss, *skips_commitment_loss],
+            "vq/codebook_loss": [codebook_loss, *skips_codebook_loss],
         }
 
 

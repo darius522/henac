@@ -89,19 +89,19 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset",
         type=str,
-        default="/home/daripete/jstsp-dac/datasets/fma_test_subset.csv",
+        default="/N/slate/daripete/jstsp-dac/datasets/fma_test_subset.csv",
         required=False,
     )
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/home/daripete/jstsp-dac/runs/stage2_smalltrain_freezecb/latest/dac/weights.pth",
+        default="/N/slate/daripete/jstsp-dac/runs/stage2_smalltrain_freezecb/latest/dac/weights.pth",
         required=False,
     )
     parser.add_argument(
         "--output-path",
         type=str,
-        default="/home/daripete/jstsp-dac/runs/stage2_smalltrain_freezecb/audios",
+        default="/N/slate/daripete/jstsp-dac/runs/stage2_smalltrain_freezecb/audios",
         required=False,
     )
     args = parser.parse_args()
