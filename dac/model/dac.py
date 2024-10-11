@@ -223,8 +223,10 @@ class DAC(BaseModel, CodecMixin):
         )
         return z, codes, latents, commitment_loss, codebook_loss, skips
 
-    def autoencode_skips(self, skips: List):
+    def autoencode_skips(self, skips: List, return_output: bool = False):
         outputs = [ae(skip) for skip, ae in zip(skips, self.skip_aes)]
+        if return_output:
+            return outputs
         return (
             [o["audio"] for o in outputs],
             [o["vq/commitment_loss"] for o in outputs],
