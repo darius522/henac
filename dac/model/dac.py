@@ -1,6 +1,7 @@
 import math
 from typing import List
 from typing import Union
+from copy import deepcopy
 
 import numpy as np
 import torch
@@ -140,12 +141,13 @@ class DAC(BaseModel, CodecMixin):
             skip_dim = (latent_dim // 2) // (n + 1)
             blind_us_dim = self.multidecoders[-1].channels // 2
             self.skip_aes.append(
-                DACSkip(
-                    encoder_dim=skip_dim,
-                    latent_dim=skip_dim,
-                    codebook_size=codebook_size,
-                    quantizer_dropout=quantizer_dropout,
-                    codebook_dim=256
+                deepcopy(
+                    DACSkip(
+                        encoder_dim=skip_dim,
+                        latent_dim=skip_dim,
+                        codebook_size=codebook_size,
+                        quantizer_dropout=quantizer_dropout,
+                    )
                 )
             )
             self.multidecoders.append(

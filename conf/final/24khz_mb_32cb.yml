@@ -38,7 +38,7 @@ ExponentialLR.gamma: 0.999996
 resume_ckpt: /home/daripete/jstsp-dac/ckpt/baseline
 bands_to_train: [1]  # bands which are taken into account during training
 amp: false
-val_batch_size: 1
+val_batch_size: 32
 device: cuda
 num_iters: 400_000
 save_iters: [10_000, 30_000, 50_000, 100_000, 150_000, 200_000]
@@ -82,7 +82,7 @@ MelSpectrogramLoss.clamp_eps: 1.0e-5
 MelSpectrogramLoss.mag_weight: 0.0
 
 # Data
-batch_size: 1
+batch_size: 32
 train/AudioDataset.duration: 0.38
 train/AudioDataset.n_examples: 10000000
 

@@ -19,7 +19,7 @@ from torchmetrics.audio import ScaleInvariantSignalNoiseRatio
 
 import argparse
 
-DURATION = 1.
+DURATION = 3.
 
 def indices_to_entropy(indices, time_axis=1, eps=1e-20, size=1024) -> torch.Tensor:
     n_step = indices.shape[time_axis]
@@ -73,26 +73,28 @@ def main(args):
         y: AudioSignal
         skips = model.autoencode_skips(skips, return_output=True)
         y = model.multidecode(z, [s['audio'] for s in skips])
-        y = torch.stack(y).sum(0)
+        y = y[:2]
+        mix = torch.stack(y).sum(0)
 
-        y, signal = y.to("cpu").detach(), signal.audio_data.to("cpu").detach()
-        snrs.append(ScaleInvariantSignalNoiseRatio().to("cpu")(y, signal))
+        mix, signal = mix.to("cpu").detach(), signal.audio_data.to("cpu").detach()
+        snrs.append(ScaleInvariantSignalNoiseRatio().to("cpu")(mix, signal))
 
         sf.write(
             os.path.join(args.output_path, 'audios', f"{fname}_full_i.wav"),
             signal.reshape(-1).numpy(),
             samplerate=24_000,
         )
-        sf.write(
-            os.path.join(args.output_path, 'audios', f"{fname}_full_o.wav"),
-            y.reshape(-1).numpy(),
-            samplerate=24_000,
-        )
+        for j, yy in enumerate(y):
+            sf.write(
+                os.path.join(args.output_path, 'audios', f"{fname}_full_o_{j}.wav"),
+                yy.detach().cpu().reshape(-1).numpy(),
+                samplerate=24_000,
+            )
 
         code: torch.Tensor
         for code, title in zip([cb_codes, *[s['codes'] for s in skips]], ['CB', 'MB', 'HB']):
             entropy = indices_to_entropy(code.permute(0, 2, 1), time_axis=1, size=1024).sum().cpu().item()
-            bitrates[f"{code.shape[-1]//DURATION}"] = entropy * (code.shape[-1] // DURATION)
+            bitrates[f"{title}_{code.shape[-1]//DURATION}"] = entropy * (code.shape[-1] // DURATION)
             # draw_rvq_histogram(
             #     code.squeeze(0).cpu().detach().numpy(),
             #     os.path.join(args.output_path, "plots", title + ".png"),
@@ -117,13 +119,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/home/daripete/jstsp-dac/runs/stage2_smalltrain_freezecb/latest/dac/weights.pth",
+        default="/home/daripete/jstsp-dac/runs/stage1_gradcheck/10k/dac/weights.pth",
         required=False,
     )
     parser.add_argument(
         "--output-path",
         type=str,
-        default="/home/daripete/jstsp-dac/runs/stage2_smalltrain_freezecb",
+        default="/home/daripete/jstsp-dac/runs/stage1_gradcheck/",
         required=False,
     )
     args = parser.parse_args()
