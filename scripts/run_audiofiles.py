@@ -19,6 +19,8 @@ from torchmetrics.audio import ScaleInvariantSignalNoiseRatio
 
 import argparse
 
+ROOT = os.getcwd()
+
 DURATION = 3.
 
 def indices_to_entropy(indices, time_axis=1, eps=1e-20, size=1024) -> torch.Tensor:
@@ -49,10 +51,12 @@ def draw_rvq_histogram(data,save_path):
 
 
 def main(args):
-    # Download a model
-    # model_path = dac.utils.download(model_type="24khz")
+    if not os.path.isdir(os.path.join(args.output_path, 'audios')):
+        os.makedirs(os.path.join(args.output_path, 'audios'))
+
     model = dac.DAC.load(args.model_path)
-    model.to("cuda:1")
+    model.to("cuda:3")
+    model.eval()
 
     dataset = pd.read_csv(args.dataset)
     bitrates, snrs = {}, []
@@ -71,7 +75,7 @@ def main(args):
 
         # Decode audio signal
         y: AudioSignal
-        skips = model.autoencode_skips(skips, return_output=True)
+        skips = model.autoencode_skips(skips, return_output=True, n_quantizers=None)
         y = model.multidecode(z, [s['audio'] for s in skips])
         y = y[:2]
         mix = torch.stack(y).sum(0)
@@ -113,19 +117,19 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset",
         type=str, 
-        default="/home/daripete/jstsp-dac/datasets/fma_test_subset.csv",
+        default=f"{ROOT}/datasets/fma_test_subset.csv",
         required=False,
     )
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/home/daripete/jstsp-dac/runs/stage1_gradcheck/10k/dac/weights.pth",
+        default=f"{ROOT}/runs/stage1_1skip_dim_8_nodropout_blind/50k/dac/weights.pth",
         required=False,
     )
     parser.add_argument(
         "--output-path",
         type=str,
-        default="/home/daripete/jstsp-dac/runs/stage1_gradcheck/",
+        default=f"{ROOT}/runs/stage1_1skip_dim_8_nodropout_blind",
         required=False,
     )
     args = parser.parse_args()

@@ -16,7 +16,7 @@ DAC.decoder_rates:
 DAC.n_codebooks: 32
 DAC.codebook_size: 1024
 DAC.codebook_dim: 8
-DAC.quantizer_dropout: 0.5
+DAC.quantizer_dropout: 0.0
 
 # Discriminator
 Discriminator.sample_rate: [6000,12000]
@@ -32,7 +32,7 @@ Discriminator.bands:
 
 # Optimization
 AdamW.betas: [0.8, 0.99]
-AdamW.lr: 0.0001
+AdamW.lr: 0.00005
 ExponentialLR.gamma: 0.999996
 
 resume_ckpt: /home/daripete/jstsp-dac/ckpt/baseline
@@ -46,7 +46,7 @@ valid_freq: 1000
 sample_freq: 10000
 num_workers: 10
 val_idx: [0, 1, 2, 3, 4, 5, 6, 7]
-seed: 0
+seed: 1
 lambdas:
   mel/loss: 15.0
   adv/feat_loss_0: 2.0
@@ -75,14 +75,14 @@ build_transform.postprocess:
 MultiScaleSTFTLoss.window_lengths: [2048, 512]
 MelSpectrogramLoss.n_mels: [5, 10, 20, 40, 80, 160, 320]
 MelSpectrogramLoss.window_lengths: [32, 64, 128, 256, 512, 1024, 2048]
-MelSpectrogramLoss.mel_fmin: [0, 0, 0, 0, 0, 0, 0]
-MelSpectrogramLoss.mel_fmax: [null, null, null, null, null, null, null]
+MelSpectrogramLoss.mel_fmin: [3000, 3000, 3000, 3000, 3000, 3000, 3000]
+MelSpectrogramLoss.mel_fmax: [6000, 6000, 6000, 6000, 6000, 6000, 6000]
 MelSpectrogramLoss.pow: 1.0
 MelSpectrogramLoss.clamp_eps: 1.0e-5
 MelSpectrogramLoss.mag_weight: 0.0
 
 # Data
-batch_size: 32
+batch_size: 28
 train/AudioDataset.duration: 0.38
 train/AudioDataset.n_examples: 10000000
 

@@ -162,7 +162,6 @@ class ResidualVectorQuantize(nn.Module):
 
         codebook_indices = []
         latents = []
-
         if n_quantizers is None:
             n_quantizers = self.n_codebooks
         if self.training:

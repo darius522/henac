@@ -138,13 +138,15 @@ def load(
     tracker: Tracker,
     resume: str = '',
 ):
+    tracker.print(args)
     bands_to_train = args['bands_to_train']
     generator, g_extra = None, {}
     discriminator, d_extra = None, {}
 
     generator = DAC() if generator is None else generator
     discriminator = Discriminator() if discriminator is None else discriminator
-    if resume != "" and os.path.exists(os.path.join(resume, "dac/weights.pth")):
+    if resume != "":
+        assert os.path.exists(os.path.join(resume, "dac/weights.pth")), "Checkpoint path provided but not found!"
         generator.load_state_dict(
             torch.load(os.path.join(resume, "dac/weights.pth"), weights_only=True)[
                 "state_dict"
@@ -159,14 +161,13 @@ def load(
         _ = [bands_params.extend(trainable_params[b]) for b in bands_to_train]
         for name, param in generator.named_parameters():
             if not any([p in name for p in bands_params]):
-                print(f"Exclude parameter {name} from generator training.")
+                tracker.print(f"Exclude parameter {name} from generator training.")
                 param.requires_grad = False
             else:
-                print(f"Include parameter {name} from generator training.")
+                tracker.print(f"Include parameter {name} from generator training.")
 
-    if resume != "" and os.path.exists(
-        os.path.join(resume, "discriminator/weights.pth")
-    ):
+    if resume != "":
+        assert os.path.exists(os.path.join(resume, "discriminator/weights.pth")), "Checkpoint path provided but not found!"
         discriminator.load_state_dict(
             torch.load(
                 os.path.join(resume, "discriminator/weights.pth"), weights_only=True
@@ -181,10 +182,10 @@ def load(
         _ = [bands_params.extend(trainable_params[b]) for b in bands_to_train]
         for name, param in discriminator.named_parameters():
             if not any([p in name for p in bands_params]):
-                print(f"Exclude parameter {name} from discriminator training.")
+                tracker.print(f"Exclude parameter {name} from discriminator training.")
                 param.requires_grad = False
             else:
-                print(f"Include parameter {name} from discriminator training.")
+                tracker.print(f"Include parameter {name} from discriminator training.")
 
     resampler = MultibandResampler()
 

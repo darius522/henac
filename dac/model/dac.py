@@ -92,7 +92,7 @@ class Decoder(nn.Module):
         for i, m in enumerate(self.model):
             x = m(x)
             if blind_us is None and isinstance(m, DecoderBlock):
-                blind_us = x
+                blind_us = x.clone()
         return x, blind_us
 
 
@@ -109,7 +109,7 @@ class DAC(BaseModel, CodecMixin):
         codebook_dim: Union[int, list] = 8,
         quantizer_dropout: bool = False,
         sample_rate: int = 24000,
-        num_skips: int = 2,
+        num_skips: int = 1,
     ):
         super().__init__()
 
@@ -147,6 +147,7 @@ class DAC(BaseModel, CodecMixin):
                         latent_dim=skip_dim,
                         codebook_size=codebook_size,
                         quantizer_dropout=quantizer_dropout,
+                        codebook_dim=8
                     )
                 )
             )
@@ -225,8 +226,8 @@ class DAC(BaseModel, CodecMixin):
         )
         return z, codes, latents, commitment_loss, codebook_loss, skips
 
-    def autoencode_skips(self, skips: List, return_output: bool = False):
-        outputs = [ae(skip) for skip, ae in zip(skips, self.skip_aes)]
+    def autoencode_skips(self, skips: List, return_output: bool = False, **args):
+        outputs = [ae(skip, **args) for skip, ae in zip(skips, self.skip_aes)]
         if return_output:
             return outputs
         return (
