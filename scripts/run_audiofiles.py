@@ -95,10 +95,10 @@ def main(args):
                 samplerate=24_000,
             )
 
-        code: torch.Tensor
-        for code, title in zip([cb_codes, *[s['codes'] for s in skips]], ['CB', 'MB', 'HB']):
-            entropy = indices_to_entropy(code.permute(0, 2, 1), time_axis=1, size=1024).sum().cpu().item()
-            bitrates[f"{title}_{code.shape[-1]//DURATION}"] = entropy * (code.shape[-1] // DURATION)
+        # code: torch.Tensor
+        # for code, title in zip([cb_codes, *[s['codes'] for s in skips]], ['CB', 'MB', 'HB']):
+        #     entropy = indices_to_entropy(code.permute(0, 2, 1), time_axis=1, size=1024).sum().cpu().item()
+        #     bitrates[f"{title}_{code.shape[-1]//DURATION}"] = entropy * (code.shape[-1] // DURATION)
             # draw_rvq_histogram(
             #     code.squeeze(0).cpu().detach().numpy(),
             #     os.path.join(args.output_path, "plots", title + ".png"),
@@ -123,13 +123,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model-path",
         type=str,
-        default=f"{ROOT}/runs/stage1_1skip_dim_8_nodropout_blind/50k/dac/weights.pth",
+        default=f"{ROOT}/runs/stage1_1skip_dim_8_nodropout_noadv2/best/dac/weights.pth",
         required=False,
     )
     parser.add_argument(
         "--output-path",
         type=str,
-        default=f"{ROOT}/runs/stage1_1skip_dim_8_nodropout_blind",
+        default=f"{ROOT}/runs/stage1_1skip_dim_8_nodropout_noadv2",
         required=False,
     )
     args = parser.parse_args()

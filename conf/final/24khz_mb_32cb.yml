@@ -1,6 +1,7 @@
 # Multiband
 MultibandResampler.sampling_rate: 24000
 MultibandResampler.cutoffs: [6000,12000]
+bands_to_train: [1]  # bands which are taken into account during training
 
 # Model setup
 DAC.sample_rate: 24000
@@ -36,7 +37,6 @@ AdamW.lr: 0.00005
 ExponentialLR.gamma: 0.999996
 
 resume_ckpt: /home/daripete/jstsp-dac/ckpt/baseline
-bands_to_train: [1]  # bands which are taken into account during training
 amp: false
 val_batch_size: 32
 device: cuda
@@ -46,7 +46,7 @@ valid_freq: 1000
 sample_freq: 10000
 num_workers: 10
 val_idx: [0, 1, 2, 3, 4, 5, 6, 7]
-seed: 1
+seed: 0
 lambdas:
   mel/loss: 15.0
   adv/feat_loss_0: 2.0
