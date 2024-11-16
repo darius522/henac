@@ -2,8 +2,8 @@
 
 #SBATCH -J dac
 #SBATCH -p gpu
-#SBATCH -o /N/slate/daripete/descript-audio-codec/logs/%j.out
-#SBATCH -e /N/slate/daripete/descript-audio-codec/logs/%j.err
+#SBATCH -o /home/daripete/descript-audio-codec/logs/%j.out
+#SBATCH -e /home/daripete/descript-audio-codec/logs/%j.err
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=daripete@iu.edu
 #SBATCH --nodes=1
@@ -14,7 +14,7 @@
 #SBATCH --mem=40G
 #SBATCH -A r00105
 
-conda activate /N/slate/daripete/anaconda3/envs/dac
+conda activate /home/daripete/anaconda3/envs/dac
 
 CODE_ROOT="$PWD"
 

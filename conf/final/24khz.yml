@@ -1,9 +1,9 @@
 # Model setup
 DAC.sample_rate: 24000
 DAC.encoder_dim: 64
-DAC.encoder_rates: [1, 4, 5, 16]
+DAC.encoder_rates: [2, 4, 5, 8]
 DAC.decoder_dim: 1536
-DAC.decoder_rates: [16, 5, 4, 1]
+DAC.decoder_rates: [8, 5, 4, 2]
 
 # Quantization
 DAC.n_codebooks: 32
@@ -100,7 +100,7 @@ train/build_dataset.folders:
   #   - /data/russian_speech/
   #   - /data/spanish_speech/
   music_hq:
-    - /N/slate/daripete/jstsp-dac/datasets/fma_train.csv
+    - /home/daripete/jstsp-dac/datasets/fma_train.csv
   # music_uq:
   #   - /data/jamendo
   # general:
@@ -111,10 +111,10 @@ val/build_dataset.folders:
   # speech_hq:
   #   - /data/daps/val
   music_hq:
-    - /N/slate/daripete/jstsp-dac/datasets/fma_valid.csv
+    - /home/daripete/jstsp-dac/datasets/fma_valid.csv
   # general:
   #   - /data/audioset/data/eval_segments/
 
 test/build_dataset.folders:
   music_hq:
-    - /N/slate/daripete/jstsp-dac/fma_test.csv
+    - /home/daripete/jstsp-dac/fma_test.csv

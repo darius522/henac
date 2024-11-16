@@ -1,6 +1,6 @@
 import os
 import sys
-sys.path.append('/N/slate/daripete/jstsp-dac')
+sys.path.append(os.getcwd())
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
