@@ -13,6 +13,7 @@ from dac.nn.layers import Snake1d
 from dac.nn.layers import WNConv1d
 from dac.nn.layers import WNConvTranspose1d
 from dac.nn.quantize import ResidualVectorQuantize
+from dac.model.dac_skip import DACSkip
 from plots.plot import residual_plots
 
 
@@ -185,12 +186,25 @@ class DAC(BaseModel, CodecMixin):
         self.n_codebooks = n_codebooks
         self.codebook_size = codebook_size
         self.codebook_dim = codebook_dim
-        self.quantizer = ResidualVectorQuantize(
-            input_dim=latent_dim,
-            n_codebooks=n_codebooks,
-            codebook_size=codebook_size,
-            codebook_dim=codebook_dim,
-            quantizer_dropout=quantizer_dropout,
+        # self.quantizer = ResidualVectorQuantize(
+        #     input_dim=latent_dim,
+        #     n_codebooks=n_codebooks,
+        #     codebook_size=codebook_size,
+        #     codebook_dim=codebook_dim,
+        #     quantizer_dropout=quantizer_dropout,
+        # )
+        from copy import deepcopy
+        self.skip_aes = nn.ModuleList([])
+        self.skip_aes.append(
+            deepcopy(
+                DACSkip(
+                    encoder_dim=latent_dim,
+                    latent_dim=latent_dim,
+                    codebook_size=codebook_size,
+                    quantizer_dropout=quantizer_dropout,
+                    codebook_dim=8
+                )
+            )
         )
 
         self.decoder = Decoder(
@@ -249,9 +263,9 @@ class DAC(BaseModel, CodecMixin):
                 Number of samples in input audio
         """
         z = self.encoder(audio_data)
-        z, codes, latents, commitment_loss, codebook_loss = self.quantizer(
-            z, n_quantizers
-        )
+        # z, codes, latents, commitment_loss, codebook_loss = self.quantizer(
+        #     z, n_quantizers
+        # )
         return z, codes, latents, commitment_loss, codebook_loss
 
     def decode(self, z: torch.Tensor):
@@ -272,6 +286,16 @@ class DAC(BaseModel, CodecMixin):
                 Decoded audio data.
         """
         return self.decoder(z)
+
+    def autoencode_skips(self, skips: List, return_output: bool = False, **args):
+        outputs = [ae(skip, **args) for skip, ae in zip(skips, self.skip_aes)]
+        if return_output:
+            return outputs
+        return (
+            [o["audio"] for o in outputs],
+            [o["vq/commitment_loss"] for o in outputs],
+            [o["vq/codebook_loss"] for o in outputs],
+        )
 
     def forward(
         self,

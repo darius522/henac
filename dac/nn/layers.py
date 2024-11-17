@@ -1,9 +1,15 @@
+import math
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from einops import rearrange
-from torch.nn.utils import weight_norm
+from torch.nn.utils.parametrizations import weight_norm
+
+def init_weights(m):
+    if isinstance(m, nn.Conv1d):
+        nn.init.trunc_normal_(m.weight, std=0.02)
+        nn.init.constant_(m.bias, 0)
 
 
 def WNConv1d(*args, **kwargs):
@@ -31,3 +37,66 @@ class Snake1d(nn.Module):
 
     def forward(self, x):
         return snake(x, self.alpha)
+    
+class ResidualUnit(nn.Module):
+    def __init__(self, dim: int = 16, dilation: int = 1):
+        super().__init__()
+        pad = ((7 - 1) * dilation) // 2
+        self.block = nn.Sequential(
+            Snake1d(dim),
+            WNConv1d(dim, dim, kernel_size=7, dilation=dilation, padding=pad),
+            Snake1d(dim),
+            WNConv1d(dim, dim, kernel_size=1),
+        )
+
+    def forward(self, x):
+        y = self.block(x)
+        pad = (x.shape[-1] - y.shape[-1]) // 2
+        if pad > 0:
+            x = x[..., pad:-pad]
+        
+        #residual_plots(x, y, 0)
+        return x + y
+    
+class EncoderBlock(nn.Module):
+    def __init__(self, dim: int = 16, in_dim: int | None = None, stride: int = 1):
+        super().__init__()
+        if not in_dim:
+            in_dim = dim // 2
+        self.block = nn.Sequential(
+            ResidualUnit(in_dim, dilation=1),
+            ResidualUnit(in_dim, dilation=3),
+            ResidualUnit(in_dim, dilation=9),
+            Snake1d(in_dim),
+            WNConv1d(
+                in_dim,
+                dim,
+                kernel_size=2 * stride,
+                stride=stride,
+                padding=math.ceil(stride / 2),
+            ),
+        )
+
+    def forward(self, x):
+        return self.block(x)
+    
+class DecoderBlock(nn.Module):
+    def __init__(self, input_dim: int = 16, output_dim: int = 8, stride: int = 1):
+        super().__init__()
+        self.block = nn.Sequential(
+            Snake1d(input_dim),
+            WNConvTranspose1d(
+                input_dim,
+                output_dim,
+                kernel_size=2 * stride,
+                stride=stride,
+                padding=math.ceil(stride / 2),
+                output_padding = (stride % 2) if stride > 1 else 0,
+            ),
+            ResidualUnit(output_dim, dilation=1),
+            ResidualUnit(output_dim, dilation=3),
+            ResidualUnit(output_dim, dilation=9),
+        )
+
+    def forward(self, x):
+        return self.block(x)
