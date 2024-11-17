@@ -2,23 +2,23 @@
 
 #SBATCH -J dac
 #SBATCH -p gpu
-#SBATCH -o /home/daripete/descript-audio-codec/logs/%j.out
-#SBATCH -e /home/daripete/descript-audio-codec/logs/%j.err
+#SBATCH -o /N/slate/daripete/jstsp-dac/logs/%j.out
+#SBATCH -e /N/slate/daripete/jstsp-dac/logs/%j.err
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=daripete@iu.edu
 #SBATCH --nodes=1
-#SBATCH --gres=gpu:2
+#SBATCH --gres=gpu:4
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=10
-#SBATCH --time=48:00:00
+#SBATCH --time=12:00:00
 #SBATCH --mem=40G
 #SBATCH -A r00105
 
-conda activate /home/daripete/anaconda3/envs/dac
+conda activate /N/slate/daripete/anaconda3/envs/dac
 
 CODE_ROOT="$PWD"
 
-CUDA_VISIBLE_DEVICES=0,1 torchrun \
+CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun \
                     --nproc_per_node gpu scripts/train.py \
-                    --args.load conf/final/24khz.yml \
-                    --save_path runs/_dummy/ 
+                    --args.load conf/final/24khz_baseline.yml \
+                    --save_path runs/sanity_baseline

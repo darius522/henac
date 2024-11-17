@@ -1,6 +1,6 @@
 import sys
 
-sys.path.append('/home/daripete/jstsp-dac')
+sys.path.append('/N/slate/daripete/jstsp-dac')
 
 import dac
 from audiotools import AudioSignal
@@ -24,6 +24,8 @@ def indices_to_entropy(indices, time_axis=1, eps=1e-20, size=1024) -> torch.Tens
 
 
 def main(args):
+    if not os.path.exists(args.output_path,):
+        os.makedirs(args.output_path,)
     # Download a model
     # model_path = dac.utils.download(model_type="24khz")
     model = dac.DAC.load(args.model_path)
@@ -75,19 +77,19 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset",
         type=str,
-        default="/home/daripete/jstsp-dac/datasets/fma_test_subset.csv",
+        default="/N/slate/daripete/jstsp-dac/datasets/fma_test_subset.csv",
         required=False,
     )
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/home/daripete/jstsp-dac/runs/scratch_baseline_24khz_lr_1e-4/50k/dac/weights.pth",
+        default="/N/slate/daripete/jstsp-dac/runs/sanity_baseline_short/100k/dac/weights.pth",
         required=False,
     )
     parser.add_argument(
         "--output-path",
         type=str,
-        default="/home/daripete/jstsp-dac/runs/scratch_baseline_24khz_lr_1e-4/audios",
+        default="/N/slate/daripete/jstsp-dac/runs/sanity_baseline_short/100k/audios",
         required=False,
     )
     args = parser.parse_args()
