@@ -266,6 +266,14 @@ class DAC(BaseModel, CodecMixin):
         # z, codes, latents, commitment_loss, codebook_loss = self.quantizer(
         #     z, n_quantizers
         # )
+        skip_out = self.skip_aes[0](z)
+        z, codes, latents, commitment_loss, codebook_loss = (
+            skip_out["audio"],
+            skip_out["codes"],
+            skip_out["latents"],
+            skip_out["vq/commitment_loss"],
+            skip_out["vq/codebook_loss"],
+        )
         return z, codes, latents, commitment_loss, codebook_loss
 
     def decode(self, z: torch.Tensor):

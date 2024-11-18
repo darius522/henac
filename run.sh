@@ -21,4 +21,4 @@ CODE_ROOT="$PWD"
 CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun \
                     --nproc_per_node gpu scripts/train.py \
                     --args.load conf/final/24khz_baseline.yml \
-                    --save_path runs/sanity_baseline
+                    --save_path runs/sanity_baseline_skip
