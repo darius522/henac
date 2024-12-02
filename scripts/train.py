@@ -153,7 +153,7 @@ def load(
     tracker.print(generator)
     tracker.print(discriminator)
 
-    generator = accel.prepare_model(generator)
+    generator = accel.prepare_model(generator, find_unused_parameters=True)
     discriminator = accel.prepare_model(discriminator)
 
     with argbind.scope(args, "generator"):
@@ -222,9 +222,8 @@ def val_loop(batch, state, accel):
         "waveform/loss": state.waveform_loss(recons, signal),
     }
 
-
 @timer()
-def train_loop(state, batch, accel, lambdas):
+def train_loop(state, batch, accel, lambdas, save_path):
     state.generator.train()
     state.discriminator.train()
     output = {}
@@ -243,6 +242,14 @@ def train_loop(state, batch, accel, lambdas):
 
     with accel.autocast():
         output["adv/disc_loss"] = state.gan_loss.discriminator_loss(recons, signal)
+
+    # if output["adv/disc_loss"] < .5:
+    #     import soundfile as sf
+    #     Path(os.path.join(save_path, 'debug')).mkdir(exist_ok=True, parents=True)
+    #     torch.save(batch, os.path.join(save_path, 'debug', f"batch_info_{batch['idx'].item()}.pt"))
+    #     sf.write(os.path.join(save_path, 'debug', f"input_{batch['idx'].item()}.wav"), signal.audio_data.squeeze().cpu().detach().numpy(), signal.sample_rate)
+    #     sf.write(os.path.join(save_path, 'debug', f"output_{batch['idx'].item()}.wav"), out["audio"].squeeze().cpu().detach().numpy(), signal.sample_rate)
+    #     assert False
 
     state.optimizer_d.zero_grad()
     accel.backward(output["adv/disc_loss"])
@@ -412,7 +419,7 @@ def train(
 
     with tracker.live:
         for tracker.step, batch in enumerate(train_dataloader, start=tracker.step):
-            train_loop(state, batch, accel, lambdas)
+            train_loop(state, batch, accel, lambdas, save_path)
 
             last_iter = (
                 tracker.step == num_iters - 1 if num_iters is not None else False

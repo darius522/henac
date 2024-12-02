@@ -65,8 +65,8 @@ class EncoderBlock(nn.Module):
             in_dim = dim // 2
         self.block = nn.Sequential(
             ResidualUnit(in_dim, dilation=1),
-            ResidualUnit(in_dim, dilation=3),
-            ResidualUnit(in_dim, dilation=9),
+            ResidualUnit(in_dim, dilation=1),
+            ResidualUnit(in_dim, dilation=1),
             Snake1d(in_dim),
             WNConv1d(
                 in_dim,
@@ -94,8 +94,8 @@ class DecoderBlock(nn.Module):
                 output_padding = (stride % 2) if stride > 1 else 0,
             ),
             ResidualUnit(output_dim, dilation=1),
-            ResidualUnit(output_dim, dilation=3),
-            ResidualUnit(output_dim, dilation=9),
+            ResidualUnit(output_dim, dilation=1),
+            ResidualUnit(output_dim, dilation=1),
         )
 
     def forward(self, x):

@@ -263,7 +263,7 @@ class DAC(BaseModel, CodecMixin):
                 Number of samples in input audio
         """
         z = self.encoder(audio_data)
-        # z, codes, latents, commitment_loss, codebook_loss = self.quantizer(
+        # z, codes, latents, commitment_loss, codebook_loss = self.skip_aes[0].quantizer(
         #     z, n_quantizers
         # )
         skip_out = self.skip_aes[0](z)

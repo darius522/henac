@@ -1,9 +1,9 @@
 # Model setup
 DAC.sample_rate: 24000
 DAC.encoder_dim: 64
-DAC.encoder_rates: [2, 4, 5, 8]
+DAC.encoder_rates: [2, 4, 5]
 DAC.decoder_dim: 1536
-DAC.decoder_rates: [8, 5, 4, 2]
+DAC.decoder_rates: [5, 4, 2]
 
 # Quantization
 DAC.n_codebooks: 32
@@ -33,12 +33,11 @@ amp: false
 val_batch_size: 1
 device: cuda
 num_iters: 400000
-save_iters: [10000, 50000, 100000, 200000]
+save_iters: [10000, 50000, 100000, 150000]
 valid_freq: 1000
 sample_freq: 10000
-num_workers: 32
+num_workers: 0
 val_idx: [0, 1, 2, 3, 4, 5, 6, 7]
-seed: 0
 lambdas:
   mel/loss: 15.0
   adv/feat_loss: 2.0
@@ -70,7 +69,7 @@ MelSpectrogramLoss.clamp_eps: 1.0e-5
 MelSpectrogramLoss.mag_weight: 0.0
 
 # Data
-batch_size: 1
+batch_size: 8
 train/AudioDataset.duration: 0.38
 train/AudioDataset.n_examples: 10000000
 
@@ -82,7 +81,7 @@ test/AudioDataset.duration: 10.0
 test/build_transform.augment_prob: 1.0
 test/AudioDataset.n_examples: 1000
 
-AudioLoader.shuffle: true
+AudioLoader.shuffle: false
 AudioDataset.without_replacement: true
 
 train/build_dataset.folders:
