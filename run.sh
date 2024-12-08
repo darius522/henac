@@ -10,7 +10,7 @@
 #SBATCH --gres=gpu:4
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=10
-#SBATCH --time=12:00:00
+#SBATCH --time=10:00:00
 #SBATCH --mem=40G
 #SBATCH -A r00105
 
@@ -22,4 +22,4 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun \
                     --nproc_per_node gpu scripts/train.py \
                     --args.load conf/final/24khz_baseline.yml \
                     --seed 1 \
-                    --save_path runs/sanity_encdec_nodilationboth_2
+                    --save_path runs/sanity_shallow_residual_nootherchange_relu

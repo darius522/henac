@@ -81,15 +81,16 @@ class Encoder(nn.Module):
             d_model *= 2
             self.block += [EncoderBlock(d_model, stride=stride)]
 
-        # Create last convolution
-        self.block += [
-            Snake1d(d_model),
-            WNConv1d(d_model, d_latent, kernel_size=3, padding=1),
-        ]
+        # # Create last convolution
+        # self.block += [
+        #     Snake1d(d_model),
+        #     WNConv1d(d_model, d_latent, kernel_size=3, padding=1),
+        # ]
 
         # Wrap black into nn.Sequential
         self.block = nn.Sequential(*self.block)
         self.enc_dim = d_model
+        import pdb; pdb.set_trace()
 
     def forward(self, x):
         for i, m in enumerate(self.block):
@@ -129,8 +130,9 @@ class Decoder(nn.Module):
     ):
         super().__init__()
 
-        # Add first conv layer
-        layers = [WNConv1d(input_channel, channels, kernel_size=7, padding=3)]
+        # # Add first conv layer
+        # layers = [WNConv1d(input_channel, channels, kernel_size=7, padding=3)]
+        layers = []
 
         # Add upsampling + MRF blocks
         for i, stride in enumerate(rates):
@@ -186,13 +188,13 @@ class DAC(BaseModel, CodecMixin):
         self.n_codebooks = n_codebooks
         self.codebook_size = codebook_size
         self.codebook_dim = codebook_dim
-        # self.quantizer = ResidualVectorQuantize(
-        #     input_dim=latent_dim,
-        #     n_codebooks=n_codebooks,
-        #     codebook_size=codebook_size,
-        #     codebook_dim=codebook_dim,
-        #     quantizer_dropout=quantizer_dropout,
-        # )
+        self.quantizer = ResidualVectorQuantize(
+            input_dim=latent_dim,
+            n_codebooks=n_codebooks,
+            codebook_size=codebook_size,
+            codebook_dim=codebook_dim,
+            quantizer_dropout=quantizer_dropout,
+        )
         from copy import deepcopy
         self.skip_aes = nn.ModuleList([])
         self.skip_aes.append(
@@ -209,7 +211,7 @@ class DAC(BaseModel, CodecMixin):
 
         self.decoder = Decoder(
             latent_dim,
-            decoder_dim,
+            latent_dim,
             decoder_rates,
         )
         self.sample_rate = sample_rate
@@ -263,7 +265,7 @@ class DAC(BaseModel, CodecMixin):
                 Number of samples in input audio
         """
         z = self.encoder(audio_data)
-        # z, codes, latents, commitment_loss, codebook_loss = self.skip_aes[0].quantizer(
+        # z, codes, latents, commitment_loss, codebook_loss = self.quantizer(
         #     z, n_quantizers
         # )
         skip_out = self.skip_aes[0](z)

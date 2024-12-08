@@ -77,10 +77,10 @@ class DACSkip(nn.Module):
     def __init__(
         self,
         encoder_dim: int = 512,
-        encoder_rates: List[int] = [1, 1, 1],
+        encoder_rates: List[int] = [1,1,1],
         latent_dim: int = 512,
         decoder_dim: int = 768,
-        decoder_rates: List[int] = [1, 1, 1],
+        decoder_rates: List[int] = [1,1,1],
         n_codebooks: int = 32,
         codebook_size: int = 1024,
         codebook_dim: Union[int, list] = 8,
@@ -153,7 +153,9 @@ class DACSkip(nn.Module):
             "length" : int
                 Number of samples in input audio
         """
+        print('1: ', audio_data.shape)
         z = self.encoder(audio_data)
+        print('2: ', z.shape)
         z, codes, latents, commitment_loss, codebook_loss = self.quantizer(
             z, n_quantizers
         )
@@ -222,7 +224,10 @@ class DACSkip(nn.Module):
         z, codes, latents, commitment_loss, codebook_loss = self.encode(
             audio_data, n_quantizers
         )
+        print('3: ', z.shape)
         x = self.decode(z)
+        print('4: ', z.shape)
+        assert False
         return {
             "audio": x[..., :length],
             "z": z,

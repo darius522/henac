@@ -24,8 +24,8 @@ def indices_to_entropy(indices, time_axis=1, eps=1e-20, size=1024) -> torch.Tens
 
 
 def main(args):
-    if not os.path.exists(args.output_path,):
-        os.makedirs(args.output_path,)
+    if not os.path.exists(args.output_path):
+        os.makedirs(args.output_path)
     # Download a model
     # model_path = dac.utils.download(model_type="24khz")
     model = dac.DAC.load(args.model_path)
@@ -83,13 +83,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs/sanity_encdec_nodilationboth_2/100k/dac/weights.pth",
+        default="/N/slate/daripete/jstsp-dac/runs/sanity_shallow_residual/100k/dac/weights.pth",
         required=False,
     )
     parser.add_argument(
         "--output-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs/sanity_encdec_nodilationboth_2/audios",
+        default="/N/slate/daripete/jstsp-dac/runs/sanity_shallow_residual/audios",
         required=False,
     )
     args = parser.parse_args()
