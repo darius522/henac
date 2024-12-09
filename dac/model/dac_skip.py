@@ -16,6 +16,7 @@ from dac.nn.layers import EncoderBlock, DecoderBlock
 from dac.nn.layers import init_weights
 
 from plots.plot import residual_plots
+from dac.nn.encodec_modules import SEANetEncoder, SEANetDecoder
 
 class EncoderSkip(nn.Module):
     def __init__(
@@ -153,9 +154,7 @@ class DACSkip(nn.Module):
             "length" : int
                 Number of samples in input audio
         """
-        print('1: ', audio_data.shape)
         z = self.encoder(audio_data)
-        print('2: ', z.shape)
         z, codes, latents, commitment_loss, codebook_loss = self.quantizer(
             z, n_quantizers
         )
@@ -224,10 +223,7 @@ class DACSkip(nn.Module):
         z, codes, latents, commitment_loss, codebook_loss = self.encode(
             audio_data, n_quantizers
         )
-        print('3: ', z.shape)
         x = self.decode(z)
-        print('4: ', z.shape)
-        assert False
         return {
             "audio": x[..., :length],
             "z": z,

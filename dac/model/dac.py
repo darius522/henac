@@ -90,7 +90,6 @@ class Encoder(nn.Module):
         # Wrap black into nn.Sequential
         self.block = nn.Sequential(*self.block)
         self.enc_dim = d_model
-        import pdb; pdb.set_trace()
 
     def forward(self, x):
         for i, m in enumerate(self.block):
@@ -179,7 +178,6 @@ class DAC(BaseModel, CodecMixin):
 
         if latent_dim is None:
             latent_dim = encoder_dim * (2 ** len(encoder_rates))
-
         self.latent_dim = latent_dim
 
         self.hop_length = np.prod(encoder_rates)
@@ -265,17 +263,17 @@ class DAC(BaseModel, CodecMixin):
                 Number of samples in input audio
         """
         z = self.encoder(audio_data)
-        # z, codes, latents, commitment_loss, codebook_loss = self.quantizer(
-        #     z, n_quantizers
-        # )
-        skip_out = self.skip_aes[0](z)
-        z, codes, latents, commitment_loss, codebook_loss = (
-            skip_out["audio"],
-            skip_out["codes"],
-            skip_out["latents"],
-            skip_out["vq/commitment_loss"],
-            skip_out["vq/codebook_loss"],
+        z, codes, latents, commitment_loss, codebook_loss = self.skip_aes[0].quantizer(
+            z, n_quantizers
         )
+        # skip_out = self.skip_aes[0](z)
+        # z, codes, latents, commitment_loss, codebook_loss = (
+        #     skip_out["audio"],
+        #     skip_out["codes"],
+        #     skip_out["latents"],
+        #     skip_out["vq/commitment_loss"],
+        #     skip_out["vq/codebook_loss"],
+        # )
         return z, codes, latents, commitment_loss, codebook_loss
 
     def decode(self, z: torch.Tensor):

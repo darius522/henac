@@ -14,7 +14,8 @@ import numpy as np
 import torch
 from torch import nn
 from torch.nn import functional as F
-from torch.nn.utils import spectral_norm, weight_norm
+from torch.nn.utils import spectral_norm
+from torch.nn.utils.parametrizations import weight_norm
 
 import typing as tp
 
@@ -452,7 +453,8 @@ class SEANetResnetBlock(nn.Module):
             )
 
     def forward(self, x):
-        return self.shortcut(x) + self.block(x)
+        sc, r = self.shortcut(x), self.block(x)
+        return (sc + r), r
 
 
 class SEANetEncoder(nn.Module):
@@ -483,11 +485,11 @@ class SEANetEncoder(nn.Module):
 
     def __init__(
         self,
-        channels: int = 1,
-        dimension: int = 128,
-        n_filters: tp.List[int] = [512, 256, 128, 64, 32],
+        channels: int = 512,
+        dimension: int = 512,
+        n_filters: tp.List[int] = [512, 512, 512, 512],
         n_residual_layers: int = 1,
-        ratios: tp.List[int] = [8, 5, 4, 2],
+        ratios: tp.List[int] = [1,1,1],
         activation: str = "ELU",
         activation_params: dict = {"alpha": 1.0},
         norm: str = "weight_norm",
@@ -600,11 +602,11 @@ class SEANetDecoder(nn.Module):
 
     def __init__(
         self,
-        channels: int = 1,
-        dimension: int = 128,
-        n_filters: int = 32,
+        channels: int = 512,
+        dimension: int = 512,
+        n_filters: tp.List[int] = [512, 512, 512, 512],
         n_residual_layers: int = 1,
-        ratios: tp.List[int] = [8, 5, 4, 2],
+        ratios: tp.List[int] = [1,1,1],
         activation: str = "ELU",
         activation_params: dict = {"alpha": 1.0},
         norm: str = "weight_norm",

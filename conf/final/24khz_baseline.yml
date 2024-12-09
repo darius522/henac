@@ -36,7 +36,7 @@ num_iters: 400000
 save_iters: [10000, 50000, 100000, 140000]
 valid_freq: 1000
 sample_freq: 10000
-num_workers: 0
+num_workers: 4
 val_idx: [0, 1, 2, 3, 4, 5, 6, 7]
 lambdas:
   mel/loss: 15.0
