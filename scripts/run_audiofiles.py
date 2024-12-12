@@ -1,6 +1,6 @@
 import sys
 
-sys.path.append('/N/slate/daripete/jstsp-dac')
+sys.path.append('/home/daripete/jstsp-dac')
 
 import dac
 from audiotools import AudioSignal
@@ -77,19 +77,19 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/datasets/fma_test_subset.csv",
+        default="/home/daripete/jstsp-dac/datasets/fma_test_subset.csv",
         required=False,
     )
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs/sanity_encodec/100k/dac/weights.pth",
+        default="/home/daripete/jstsp-dac/runs/sanity_skip_1/50k/dac/weights.pth",
         required=False,
     )
     parser.add_argument(
         "--output-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs/sanity_encodec/audios",
+        default="/home/daripete/jstsp-dac/runs/sanity_skip_1/",
         required=False,
     )
     args = parser.parse_args()

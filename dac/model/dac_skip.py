@@ -22,7 +22,7 @@ class EncoderSkip(nn.Module):
     def __init__(
         self,
         d_model: int = 512,
-        strides: list = [1, 1, 1],
+        strides: list = [1,1,1],
         d_latent: int = 64,
     ):
         super().__init__()
@@ -78,10 +78,10 @@ class DACSkip(nn.Module):
     def __init__(
         self,
         encoder_dim: int = 512,
-        encoder_rates: List[int] = [1,1,1],
+        encoder_rates: List[int] = [4],
         latent_dim: int = 512,
         decoder_dim: int = 768,
-        decoder_rates: List[int] = [1,1,1],
+        decoder_rates: List[int] = [4],
         n_codebooks: int = 32,
         codebook_size: int = 1024,
         codebook_dim: Union[int, list] = 8,
