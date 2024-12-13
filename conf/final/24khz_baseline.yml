@@ -4,6 +4,7 @@ DAC.encoder_dim: 64
 DAC.encoder_rates: [2, 2, 3]
 DAC.decoder_dim: 1536
 DAC.decoder_rates: [3, 2, 2]
+DAC.latent_dim: 512
 
 # Quantization
 DAC.n_codebooks: 32

@@ -57,19 +57,18 @@ class ResidualUnit(nn.Module):
         
         #residual_plots(x, y, 0)
         return x + y
-    
+
+
 class EncoderBlock(nn.Module):
-    def __init__(self, dim: int = 16, in_dim: int | None = None, stride: int = 1):
+    def __init__(self, dim: int = 16, stride: int = 1):
         super().__init__()
-        if not in_dim:
-            in_dim = dim // 2
         self.block = nn.Sequential(
-            ResidualUnit(in_dim, dilation=1),
-            ResidualUnit(in_dim, dilation=1),
-            ResidualUnit(in_dim, dilation=1),
-            Snake1d(in_dim),
+            ResidualUnit(dim // 2, dilation=1),
+            ResidualUnit(dim // 2, dilation=3),
+            ResidualUnit(dim // 2, dilation=9),
+            Snake1d(dim // 2),
             WNConv1d(
-                in_dim,
+                dim // 2,
                 dim,
                 kernel_size=2 * stride,
                 stride=stride,
@@ -91,11 +90,11 @@ class DecoderBlock(nn.Module):
                 kernel_size=2 * stride,
                 stride=stride,
                 padding=math.ceil(stride / 2),
-                output_padding=0 if stride % 2 == 0 else 1
+                output_padding = (stride % 2) if stride > 1 else 0,
             ),
             ResidualUnit(output_dim, dilation=1),
-            ResidualUnit(output_dim, dilation=1),
-            ResidualUnit(output_dim, dilation=1),
+            ResidualUnit(output_dim, dilation=3),
+            ResidualUnit(output_dim, dilation=9),
         )
 
     def forward(self, x):

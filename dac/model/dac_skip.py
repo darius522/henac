@@ -30,13 +30,14 @@ class EncoderSkip(nn.Module):
         self.block = []
         # Create EncoderBlocks that double channels as they downsample by `stride`
         for stride in strides:
-            self.block += [EncoderBlock(d_model, in_dim=d_model, stride=stride)]
+            d_model *= 2
+            self.block += [EncoderBlock(d_model, stride=stride)]
 
-        # Create last convolution
-        self.block += [
-            Snake1d(d_model),
-            WNConv1d(d_model, d_latent, kernel_size=3, padding=1),
-        ]
+        # # Create last convolution
+        # self.block += [
+        #     Snake1d(d_model),
+        #     WNConv1d(d_model, d_latent, kernel_size=3, padding=1),
+        # ]
 
         # Wrap black into nn.Sequential
         self.block = nn.Sequential(*self.block)
@@ -57,13 +58,14 @@ class DecoderSkip(nn.Module):
     ):
         super().__init__()
 
-        # Add first conv layer
-        layers = [WNConv1d(input_channel, channels, kernel_size=7, padding=3)]
+        # # Add first conv layer
+        # layers = [WNConv1d(input_channel, channels, kernel_size=7, padding=3)]
+        layers = []
 
         # Add upsampling + MRF blocks
         for i, stride in enumerate(rates):
-            input_dim = channels if i == 0 else input_channel
-            output_dim = input_channel
+            input_dim = channels // 2**i
+            output_dim = channels // 2 ** (i + 1)
             layers += [DecoderBlock(input_dim, output_dim, stride)]
 
         self.model = nn.Sequential(*layers)
@@ -77,10 +79,10 @@ class DecoderSkip(nn.Module):
 class DACSkip(nn.Module):
     def __init__(
         self,
-        encoder_dim: int = 512,
+        encoder_dim: int = 256,
         encoder_rates: List[int] = [4],
-        latent_dim: int = 512,
-        decoder_dim: int = 768,
+        latent_dim: int = 256,
+        decoder_dim: int = 1024,
         decoder_rates: List[int] = [4],
         n_codebooks: int = 32,
         codebook_size: int = 1024,
@@ -105,7 +107,7 @@ class DACSkip(nn.Module):
         self.codebook_size = codebook_size
         self.codebook_dim = codebook_dim
         self.quantizer = ResidualVectorQuantize(
-            input_dim=latent_dim,
+            input_dim=latent_dim*2,
             n_codebooks=n_codebooks,
             codebook_size=codebook_size,
             codebook_dim=codebook_dim,
@@ -155,9 +157,7 @@ class DACSkip(nn.Module):
                 Number of samples in input audio
         """
         z = self.encoder(audio_data)
-        z, codes, latents, commitment_loss, codebook_loss = self.quantizer(
-            z, n_quantizers
-        )
+        z, codes, latents, commitment_loss, codebook_loss = self.quantizer(z, n_quantizers)
         return z, codes, latents, commitment_loss, codebook_loss
 
     def decode(self, z: torch.Tensor):

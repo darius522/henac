@@ -20,6 +20,7 @@ def indices_to_entropy(indices, time_axis=1, eps=1e-20, size=1024) -> torch.Tens
     n_step = indices.shape[time_axis]
     oh_indices  = torch.nn.functional.one_hot(indices, num_classes=size)
     p = (torch.sum(oh_indices, dim=time_axis) + eps) / n_step
+    print(torch.sum(torch.mul(p, torch.log(p)), axis=-1).shape)
     return -torch.sum(torch.mul(p, torch.log(p)), axis=-1)  # * n_step
 
 
@@ -37,7 +38,7 @@ def main(args):
     for i, row in tqdm(dataset.iterrows(), total=len(dataset)):
         fname = os.path.basename(row.path).split('.')[0]
         # Load audio signal file
-        signal = AudioSignal(row.path, duration=10.0)
+        signal = AudioSignal(row.path, duration=5.0)
 
         # Encode audio signal as one long file
         # (may run out of GPU memory on long files)
@@ -47,7 +48,7 @@ def main(args):
         z, codes, latents, _, _ = model.encode(x)
         entropies.append(indices_to_entropy(
             codes.permute(0, 2, 1), time_axis=1, size=1024
-        ).mean().cpu().item())
+        ).detach().cpu().numpy())
 
         # Decode audio signal
         y: AudioSignal
@@ -67,7 +68,7 @@ def main(args):
             samplerate=24_000,
         )
 
-    print(f'Overall Entropy: {np.round(np.mean(entropies), 1)}')
+    print(f'Overall Entropy: {np.round(np.mean(entropies, -1), 1)}')
     print(f'Overall SNR: {np.round(np.mean(snrs), 1)}')
 
 if __name__ == "__main__":
@@ -83,13 +84,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/home/daripete/jstsp-dac/runs/sanity_skip_1/50k/dac/weights.pth",
+        default="/home/daripete/jstsp-dac/runs/sanity_skip_fixed/50k/dac/weights.pth",
         required=False,
     )
     parser.add_argument(
         "--output-path",
         type=str,
-        default="/home/daripete/jstsp-dac/runs/sanity_skip_1/",
+        default="/home/daripete/jstsp-dac/runs/sanity_skip_fixed/audios",
         required=False,
     )
     args = parser.parse_args()
