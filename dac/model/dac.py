@@ -193,19 +193,19 @@ class DAC(BaseModel, CodecMixin):
             codebook_dim=codebook_dim,
             quantizer_dropout=quantizer_dropout,
         )
-        from copy import deepcopy
-        self.skip_aes = nn.ModuleList([])
-        self.skip_aes.append(
-            deepcopy(
-                DACSkip(
-                    encoder_dim=latent_dim,
-                    latent_dim=latent_dim,
-                    codebook_size=codebook_size,
-                    quantizer_dropout=quantizer_dropout,
-                    codebook_dim=8
-                )
-            )
-        )
+        # from copy import deepcopy
+        # self.skip_aes = nn.ModuleList([])
+        # self.skip_aes.append(
+        #     deepcopy(
+        #         DACSkip(
+        #             encoder_dim=latent_dim,
+        #             latent_dim=latent_dim,
+        #             codebook_size=codebook_size,
+        #             quantizer_dropout=quantizer_dropout,
+        #             codebook_dim=8
+        #         )
+        #     )
+        # )
         
         self.decoder = Decoder(
             latent_dim,
@@ -263,17 +263,17 @@ class DAC(BaseModel, CodecMixin):
                 Number of samples in input audio
         """
         z = self.encoder(audio_data)
-        # z, codes, latents, commitment_loss, codebook_loss = self.skip_aes[0].quantizer(
-        #     z, n_quantizers
-        # )
-        skip_out = self.skip_aes[0](z)
-        z, codes, latents, commitment_loss, codebook_loss = (
-            skip_out["audio"],
-            skip_out["codes"],
-            skip_out["latents"],
-            skip_out["vq/commitment_loss"],
-            skip_out["vq/codebook_loss"],
+        z, codes, latents, commitment_loss, codebook_loss = self.quantizer(
+            z, n_quantizers
         )
+        # skip_out = self.skip_aes[0](z)
+        # z, codes, latents, commitment_loss, codebook_loss = (
+        #     skip_out["audio"],
+        #     skip_out["codes"],
+        #     skip_out["latents"],
+        #     skip_out["vq/commitment_loss"],
+        #     skip_out["vq/codebook_loss"],
+        # )
         return z, codes, latents, commitment_loss, codebook_loss
 
     def decode(self, z: torch.Tensor):

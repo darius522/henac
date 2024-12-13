@@ -1,10 +1,10 @@
 # Model setup
 DAC.sample_rate: 24000
 DAC.encoder_dim: 64
-DAC.encoder_rates: [2, 2, 3]
+DAC.encoder_rates: [2, 2, 4, 20]
 DAC.decoder_dim: 1536
-DAC.decoder_rates: [3, 2, 2]
-DAC.latent_dim: 512
+DAC.decoder_rates: [20, 4, 2, 2]
+DAC.latent_dim: 1024
 
 # Quantization
 DAC.n_codebooks: 32
