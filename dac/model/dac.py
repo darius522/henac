@@ -193,19 +193,19 @@ class DAC(BaseModel, CodecMixin):
             codebook_dim=codebook_dim,
             quantizer_dropout=quantizer_dropout,
         )
-        # from copy import deepcopy
-        # self.skip_aes = nn.ModuleList([])
-        # self.skip_aes.append(
-        #     deepcopy(
-        #         DACSkip(
-        #             encoder_dim=latent_dim,
-        #             latent_dim=latent_dim,
-        #             codebook_size=codebook_size,
-        #             quantizer_dropout=quantizer_dropout,
-        #             codebook_dim=8
-        #         )
-        #     )
-        # )
+        from copy import deepcopy
+        self.skip_aes = nn.ModuleList([])
+        self.skip_aes.append(
+            deepcopy(
+                DACSkip(
+                    encoder_dim=latent_dim,
+                    latent_dim=latent_dim,
+                    codebook_size=codebook_size,
+                    quantizer_dropout=quantizer_dropout,
+                    codebook_dim=8
+                )
+            )
+        )
         
         self.decoder = Decoder(
             latent_dim,

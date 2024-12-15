@@ -84,13 +84,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/home/daripete/jstsp-dac/runs/sanity_skip_fixed/50k/dac/weights.pth",
+        default="/home/daripete/jstsp-dac/runs/sanity_base_2_2_4_20/140k/dac/weights.pth",
         required=False,
     )
     parser.add_argument(
         "--output-path",
         type=str,
-        default="/home/daripete/jstsp-dac/runs/sanity_skip_fixed/audios",
+        default="/home/daripete/jstsp-dac/runs/sanity_base_2_2_4_20/140k/audios",
         required=False,
     )
     args = parser.parse_args()
