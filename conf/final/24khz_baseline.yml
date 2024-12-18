@@ -9,7 +9,7 @@ DAC.latent_dim: 1024
 # Quantization
 DAC.n_codebooks: 32
 DAC.codebook_size: 1024
-DAC.codebook_dim: 128
+DAC.codebook_dim: 8
 DAC.quantizer_dropout: 0.5
 
 # Discriminator
@@ -37,7 +37,7 @@ num_iters: 400000
 save_iters: [10000, 50000, 100000, 140000]
 valid_freq: 1000
 sample_freq: 10000
-num_workers: 4
+num_workers: 10
 val_idx: [0, 1, 2, 3, 4, 5, 6, 7]
 lambdas:
   mel/loss: 15.0
@@ -45,6 +45,7 @@ lambdas:
   adv/gen_loss: 1.0
   vq/commitment_loss: 0.25
   vq/codebook_loss: 1.0
+  vq/bitrate_loss: 1.0
 
 VolumeNorm.db: [const, -16]
 
@@ -70,7 +71,7 @@ MelSpectrogramLoss.clamp_eps: 1.0e-5
 MelSpectrogramLoss.mag_weight: 0.0
 
 # Data
-batch_size: 4
+batch_size: 8
 train/AudioDataset.duration: 0.38
 train/AudioDataset.n_examples: 10000000
 

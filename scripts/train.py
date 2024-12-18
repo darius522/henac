@@ -232,7 +232,7 @@ def val_loop(batch, state, accel):
         "waveform/loss": state.waveform_loss(recons, signal),
     }
 
-#@timer()
+@timer()
 def train_loop(state, batch, accel, lambdas, save_path):
     state.generator.train()
     state.discriminator.train()
@@ -253,17 +253,10 @@ def train_loop(state, batch, accel, lambdas, save_path):
         recons = AudioSignal(out["audio"], signal.sample_rate)
         commitment_loss = out["vq/commitment_loss"]
         codebook_loss = out["vq/codebook_loss"]
+        bitrate_loss = out["vq/bitrate_loss"]
 
     with accel.autocast():
         output["adv/disc_loss"] = state.gan_loss.discriminator_loss(recons, signal)
-
-    # if output["adv/disc_loss"] < .5:
-    #     import soundfile as sf
-    #     Path(os.path.join(save_path, 'debug')).mkdir(exist_ok=True, parents=True)
-    #     torch.save(batch, os.path.join(save_path, 'debug', f"batch_info_{batch['idx'].item()}.pt"))
-    #     sf.write(os.path.join(save_path, 'debug', f"input_{batch['idx'].item()}.wav"), signal.audio_data.squeeze().cpu().detach().numpy(), signal.sample_rate)
-    #     sf.write(os.path.join(save_path, 'debug', f"output_{batch['idx'].item()}.wav"), out["audio"].squeeze().cpu().detach().numpy(), signal.sample_rate)
-    #     assert False
 
     state.optimizer_d.zero_grad()
     accel.backward(output["adv/disc_loss"])
@@ -284,6 +277,7 @@ def train_loop(state, batch, accel, lambdas, save_path):
         ) = state.gan_loss.generator_loss(recons, signal)
         output["vq/commitment_loss"] = commitment_loss
         output["vq/codebook_loss"] = codebook_loss
+        output["vq/bitrate_loss"] = bitrate_loss
         output["loss"] = sum([v * output[k] for k, v in lambdas.items() if k in output])
 
     state.optimizer_g.zero_grad()
@@ -390,6 +384,7 @@ def train(
         "adv/gen_loss": 1.0,
         "vq/commitment_loss": 0.25,
         "vq/codebook_loss": 1.0,
+        "vq/bitrate_loss": 1.0,
     },
 ):
     util.seed(seed)

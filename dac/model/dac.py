@@ -215,8 +215,8 @@ class DAC(BaseModel, CodecMixin):
         self.multidecoders = nn.ModuleList([])
         self.multidecoders.append(
             Decoder(
-                latent_dim//2,
-                latent_dim//2,
+                latent_dim,
+                latent_dim,
                 decoder_rates[1:],
             )
         )
@@ -281,14 +281,15 @@ class DAC(BaseModel, CodecMixin):
         #     z, n_quantizers
         # )
         skip_out = self.skip_aes[0](skip_feat[1])
-        z_skip, codes, latents, commitment_loss, codebook_loss = (
+        z_skip, codes, latents, commitment_loss, codebook_loss, bitrate_loss = (
             skip_out["audio"],
             skip_out["codes"],
             skip_out["latents"],
             skip_out["vq/commitment_loss"],
             skip_out["vq/codebook_loss"],
+            skip_out["vq/bitrate_loss"],
         )
-        return z_main, z_skip, codes, latents, commitment_loss, codebook_loss
+        return z_main, z_skip, codes, latents, commitment_loss, codebook_loss, bitrate_loss
 
     def decode(self, z: torch.Tensor, bu_level: int | None = None):
         """Decode given latent codes and return audio data
@@ -361,11 +362,12 @@ class DAC(BaseModel, CodecMixin):
         """
         length = audio_data.shape[-1]
         audio_data = self.preprocess(audio_data, sample_rate)
-        z_main, z_skip, codes, latents, commitment_loss, codebook_loss = self.encode(
+        z_main, z_skip, codes, latents, commitment_loss, codebook_loss, bitrate_loss = self.encode(
             audio_data, n_quantizers
         )
 
-        #x_main = self.decode(z_main, bu_level=0)
+        x_main = self.decode(z_main, bu_level=0)
+        z_skip = torch.cat([x_main[..., :z_skip.shape[-1]], z_skip], 1)
         x_skip = self.multidecoders[0](z_skip)
         return {
             "audio": x_skip[..., :length],
@@ -374,6 +376,7 @@ class DAC(BaseModel, CodecMixin):
             "latents": latents,
             "vq/commitment_loss": commitment_loss,
             "vq/codebook_loss": codebook_loss,
+            "vq/bitrate_loss": bitrate_loss,
         }
 
 

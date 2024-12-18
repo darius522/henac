@@ -49,16 +49,12 @@ def main(args):
         # (may run out of GPU memory on long files)
         signal.to(model.device)
 
-        x = model.preprocess(signal.audio_data, signal.sample_rate)
-        bands = resampler(x)
-        z, codes, latents, _, _ = model.encode(x)
+        out = model.forward(signal.audio_data)
+        y, codes = out['audio'], out['codes']
+        bands = resampler(signal.audio_data)
         entropies.append(indices_to_entropy(
             codes.permute(0, 2, 1), time_axis=1, size=1024
         ).detach().cpu().numpy())
-
-        # Decode audio signal
-        y: AudioSignal
-        y = model.multidecoders[0](z)
 
         y, signal = y.to('cpu').detach(), bands[1].to('cpu').detach()
         y = normalize_to_match_peak_batched(y, signal)
@@ -74,6 +70,9 @@ def main(args):
             y.reshape(-1).numpy(),
             samplerate=24_000,
         )
+        
+        del out
+        
     
     br_per_cb = np.array(entropies).mean((0,1))
     print(f'Overall Entropy: {np.round(br_per_cb, 1)}')
@@ -92,13 +91,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/home/daripete/jstsp-dac/runs/sanity_mid_full/10k/dac/weights.pth",
+        default="/home/daripete/jstsp-dac/runs/sanity_mid_mid_blindus_brctrl/10k/dac/weights.pth",
         required=False,
     )
     parser.add_argument(
         "--output-path",
         type=str,
-        default="/home/daripete/jstsp-dac/runs/sanity_mid_full/10k/audios",
+        default="/home/daripete/jstsp-dac/runs/sanity_mid_mid_blindus_brctrl/10k/audios",
         required=False,
     )
     args = parser.parse_args()
