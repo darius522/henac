@@ -92,9 +92,13 @@ class Encoder(nn.Module):
         self.enc_dim = d_model
 
     def forward(self, x):
+        skips = []
         for i, m in enumerate(self.block):
             x = m(x)
-        return x
+            if isinstance(m, EncoderBlock):
+                skips.append(x.clone())
+        skips = list(reversed(skips))
+        return x, skips
 
 
 class DecoderBlock(nn.Module):
@@ -148,9 +152,11 @@ class Decoder(nn.Module):
 
         self.model = nn.Sequential(*layers)
 
-    def forward(self, x):
+    def forward(self, x, bu_level=None):
         for i, m in enumerate(self.model):
             x = m(x)
+            if i == bu_level: # optional: bail early for bu features
+                return x
         return x
 
 
@@ -198,7 +204,7 @@ class DAC(BaseModel, CodecMixin):
         self.skip_aes.append(
             deepcopy(
                 DACSkip(
-                    encoder_dim=latent_dim,
+                    encoder_dim=latent_dim//2,
                     latent_dim=latent_dim,
                     codebook_size=codebook_size,
                     quantizer_dropout=quantizer_dropout,
@@ -206,7 +212,15 @@ class DAC(BaseModel, CodecMixin):
                 )
             )
         )
-        
+        self.multidecoders = nn.ModuleList([])
+        self.multidecoders.append(
+            Decoder(
+                latent_dim//2,
+                latent_dim//2,
+                decoder_rates[1:],
+            )
+        )
+
         self.decoder = Decoder(
             latent_dim,
             latent_dim,
@@ -262,21 +276,21 @@ class DAC(BaseModel, CodecMixin):
             "length" : int
                 Number of samples in input audio
         """
-        z = self.encoder(audio_data)
-        z, codes, latents, commitment_loss, codebook_loss = self.quantizer(
-            z, n_quantizers
-        )
-        # skip_out = self.skip_aes[0](z)
-        # z, codes, latents, commitment_loss, codebook_loss = (
-        #     skip_out["audio"],
-        #     skip_out["codes"],
-        #     skip_out["latents"],
-        #     skip_out["vq/commitment_loss"],
-        #     skip_out["vq/codebook_loss"],
+        z_main, skip_feat = self.encoder(audio_data)
+        # z, codes, latents, commitment_loss, codebook_loss = self.quantizer(
+        #     z, n_quantizers
         # )
-        return z, codes, latents, commitment_loss, codebook_loss
+        skip_out = self.skip_aes[0](skip_feat[1])
+        z_skip, codes, latents, commitment_loss, codebook_loss = (
+            skip_out["audio"],
+            skip_out["codes"],
+            skip_out["latents"],
+            skip_out["vq/commitment_loss"],
+            skip_out["vq/codebook_loss"],
+        )
+        return z_main, z_skip, codes, latents, commitment_loss, codebook_loss
 
-    def decode(self, z: torch.Tensor):
+    def decode(self, z: torch.Tensor, bu_level: int | None = None):
         """Decode given latent codes and return audio data
 
         Parameters
@@ -293,7 +307,7 @@ class DAC(BaseModel, CodecMixin):
             "audio" : Tensor[B x 1 x length]
                 Decoded audio data.
         """
-        return self.decoder(z)
+        return self.decoder(z, bu_level)
 
     def autoencode_skips(self, skips: List, return_output: bool = False, **args):
         outputs = [ae(skip, **args) for skip, ae in zip(skips, self.skip_aes)]
@@ -347,14 +361,15 @@ class DAC(BaseModel, CodecMixin):
         """
         length = audio_data.shape[-1]
         audio_data = self.preprocess(audio_data, sample_rate)
-        z, codes, latents, commitment_loss, codebook_loss = self.encode(
+        z_main, z_skip, codes, latents, commitment_loss, codebook_loss = self.encode(
             audio_data, n_quantizers
         )
 
-        x = self.decode(z)
+        #x_main = self.decode(z_main, bu_level=0)
+        x_skip = self.multidecoders[0](z_skip)
         return {
-            "audio": x[..., :length],
-            "z": z,
+            "audio": x_skip[..., :length],
+            "z": z_skip,
             "codes": codes,
             "latents": latents,
             "vq/commitment_loss": commitment_loss,

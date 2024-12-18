@@ -5,6 +5,8 @@ import warnings
 from dataclasses import dataclass
 from pathlib import Path
 
+import julius
+
 import argbind
 import torch
 from audiotools import AudioSignal
@@ -20,6 +22,7 @@ from audiotools.ml.decorators import when
 from torch.utils.tensorboard import SummaryWriter
 
 import dac
+from utils.audio_utils import normalize_to_match_peak_batched
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -120,6 +123,8 @@ class State:
     val_data: AudioDataset
 
     tracker: Tracker
+    
+    resampler: julius.SplitBands
 
 
 @argbind.bind(without_prefix=True)
@@ -127,34 +132,35 @@ def load(
     args,
     accel: ml.Accelerator,
     tracker: Tracker,
-    save_path: str,
     resume: str = '',
-    tag: str = "latest",
-    load_weights: bool = False,
 ):
+    tracker.print(args)
     generator, g_extra = None, {}
     discriminator, d_extra = None, {}
 
-    if resume != '':
-        kwargs = {
-            "folder": resume,#f"{save_path}/{tag}",
-            "map_location": "cpu",
-            "package": not load_weights,
-        }
-        tracker.print(f"Resuming from {str(Path('.').absolute())}/{kwargs['folder']}")
-        if (Path(kwargs["folder"]) / "dac").exists():
-            generator, g_extra = DAC.load_from_folder(**kwargs)
-        if (Path(kwargs["folder"]) / "discriminator").exists():
-            discriminator, d_extra = Discriminator.load_from_folder(**kwargs)
-
     generator = DAC() if generator is None else generator
     discriminator = Discriminator() if discriminator is None else discriminator
+    if resume != "":
+        assert os.path.exists(os.path.join(resume, "dac/weights.pth")), "Checkpoint path provided but not found!"
+        generator.load_state_dict(
+            torch.load(os.path.join(resume, "dac/weights.pth"), weights_only=True)[
+                "state_dict"
+            ],
+            strict=False,
+        )
+        trainable_params = ["skip_aes.0", "multidecoders.0"]
+        for name, param in generator.named_parameters():
+            if not any([p in name for p in trainable_params]):
+                tracker.print(f"Exclude parameter {name} from generator training.")
+                param.requires_grad = False
+            else:
+                tracker.print(f"Include parameter {name} from generator training.")
 
     tracker.print(generator)
     tracker.print(discriminator)
 
     generator = accel.prepare_model(generator, find_unused_parameters=True)
-    discriminator = accel.prepare_model(discriminator)
+    discriminator = accel.prepare_model(discriminator, find_unused_parameters=True)
 
     with argbind.scope(args, "generator"):
         optimizer_g = AdamW(generator.parameters(), use_zero=accel.use_ddp)
@@ -185,6 +191,8 @@ def load(
     stft_loss = losses.MultiScaleSTFTLoss()
     mel_loss = losses.MelSpectrogramLoss()
     gan_loss = losses.GANLoss(discriminator)
+    
+    sp = julius.SplitBands(sample_rate, cutoffs=[3000, 6000]).to('cuda')
 
     return State(
         generator=generator,
@@ -200,6 +208,7 @@ def load(
         tracker=tracker,
         train_data=train_data,
         val_data=val_data,
+        resampler=sp,
     )
 
 
@@ -213,6 +222,7 @@ def val_loop(batch, state, accel):
     )
 
     out = state.generator(signal.audio_data, signal.sample_rate)
+    signal = AudioSignal(state.resampler(signal.audio_data.clone())[1], signal.sample_rate)
     recons = AudioSignal(out["audio"], signal.sample_rate)
 
     return {
@@ -222,7 +232,7 @@ def val_loop(batch, state, accel):
         "waveform/loss": state.waveform_loss(recons, signal),
     }
 
-@timer()
+#@timer()
 def train_loop(state, batch, accel, lambdas, save_path):
     state.generator.train()
     state.discriminator.train()
@@ -234,8 +244,12 @@ def train_loop(state, batch, accel, lambdas, save_path):
             batch["signal"].clone(), **batch["transform_args"]
         )
 
+    
     with accel.autocast():
         out = state.generator(signal.audio_data, signal.sample_rate)
+        band = state.resampler(signal.audio_data.clone())[1]
+        band = normalize_to_match_peak_batched(band, signal.audio_data)
+        signal = AudioSignal(band, signal.sample_rate)
         recons = AudioSignal(out["audio"], signal.sample_rate)
         commitment_loss = out["vq/commitment_loss"]
         codebook_loss = out["vq/codebook_loss"]
@@ -332,6 +346,7 @@ def save_samples(state, val_idx, writer):
     )
 
     out = state.generator(signal.audio_data, signal.sample_rate)
+    signal = AudioSignal(state.resampler(signal.audio_data.clone())[1], signal.sample_rate)
     recons = AudioSignal(out["audio"], signal.sample_rate)
 
     audio_dict = {"recons": recons}
@@ -386,7 +401,7 @@ def train(
         writer=writer, log_file=f"{save_path}/log.txt", rank=accel.local_rank
     )
 
-    state = load(args, accel, tracker, save_path)
+    state = load(args, accel, tracker, resume=args['resume_ckpt'])
     train_dataloader = accel.prepare_dataloader(
         state.train_data,
         start_idx=state.tracker.step * batch_size,

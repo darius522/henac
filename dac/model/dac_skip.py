@@ -107,7 +107,7 @@ class DACSkip(nn.Module):
         self.codebook_size = codebook_size
         self.codebook_dim = codebook_dim
         self.quantizer = ResidualVectorQuantize(
-            input_dim=latent_dim*2,
+            input_dim=latent_dim,
             n_codebooks=n_codebooks,
             codebook_size=codebook_size,
             codebook_dim=codebook_dim,

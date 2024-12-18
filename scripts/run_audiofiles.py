@@ -15,13 +15,16 @@ from torchmetrics.audio import ScaleInvariantSignalNoiseRatio
 
 import argparse, os
 
+from utils.audio_utils import normalize_to_match_peak_batched
+
+import julius
+
 
 def indices_to_entropy(indices, time_axis=1, eps=1e-20, size=1024) -> torch.Tensor:
     n_step = indices.shape[time_axis]
     oh_indices  = torch.nn.functional.one_hot(indices, num_classes=size)
     p = (torch.sum(oh_indices, dim=time_axis) + eps) / n_step
-    print(torch.sum(torch.mul(p, torch.log(p)), axis=-1).shape)
-    return -torch.sum(torch.mul(p, torch.log(p)), axis=-1)  # * n_step
+    return -torch.sum(torch.mul(p, torch.log(p)), axis=-1) * n_step
 
 
 def main(args):
@@ -34,6 +37,8 @@ def main(args):
 
     dataset = pd.read_csv(args.dataset)
     entropies, snrs = [], []
+    
+    resampler = julius.SplitBands(24_000, cutoffs=[3000, 6000]).to('cuda')
 
     for i, row in tqdm(dataset.iterrows(), total=len(dataset)):
         fname = os.path.basename(row.path).split('.')[0]
@@ -45,6 +50,7 @@ def main(args):
         signal.to(model.device)
 
         x = model.preprocess(signal.audio_data, signal.sample_rate)
+        bands = resampler(x)
         z, codes, latents, _, _ = model.encode(x)
         entropies.append(indices_to_entropy(
             codes.permute(0, 2, 1), time_axis=1, size=1024
@@ -52,9 +58,10 @@ def main(args):
 
         # Decode audio signal
         y: AudioSignal
-        y = model.decode(z)
+        y = model.multidecoders[0](z)
 
-        y, signal = y.to('cpu').detach(), signal.audio_data.to('cpu').detach()
+        y, signal = y.to('cpu').detach(), bands[1].to('cpu').detach()
+        y = normalize_to_match_peak_batched(y, signal)
         snrs.append(ScaleInvariantSignalNoiseRatio().to("cpu")(y, signal))
         
         sf.write(
@@ -67,8 +74,9 @@ def main(args):
             y.reshape(-1).numpy(),
             samplerate=24_000,
         )
-
-    print(f'Overall Entropy: {np.round(np.mean(entropies, -1), 1)}')
+    
+    br_per_cb = np.array(entropies).mean((0,1))
+    print(f'Overall Entropy: {np.round(br_per_cb, 1)}')
     print(f'Overall SNR: {np.round(np.mean(snrs), 1)}')
 
 if __name__ == "__main__":
@@ -84,13 +92,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/home/daripete/jstsp-dac/runs/sanity_base_2_2_4_20/140k/dac/weights.pth",
+        default="/home/daripete/jstsp-dac/runs/sanity_mid_full/10k/dac/weights.pth",
         required=False,
     )
     parser.add_argument(
         "--output-path",
         type=str,
-        default="/home/daripete/jstsp-dac/runs/sanity_base_2_2_4_20/140k/audios",
+        default="/home/daripete/jstsp-dac/runs/sanity_mid_full/10k/audios",
         required=False,
     )
     args = parser.parse_args()
