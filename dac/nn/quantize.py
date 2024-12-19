@@ -33,8 +33,8 @@ class VectorQuantize(nn.Module):
 
     def indices_to_bitrate(self, indices, time_axis=1, eps=1e-20, size=1024) -> torch.Tensor:
         n_step = indices.shape[time_axis]
-        oh_indices  = torch.nn.functional.one_hot(indices, num_classes=size)
-        p = (torch.sum(oh_indices, dim=time_axis) + eps) / n_step
+        #oh_indices  = torch.nn.functional.one_hot(indices, num_classes=size)
+        p = (torch.sum(indices, dim=time_axis) + eps) / n_step
         return -torch.sum(torch.mul(p, torch.log(p)), axis=-1) * n_step
 
     def forward(self, z):
@@ -75,11 +75,19 @@ class VectorQuantize(nn.Module):
         z_q = self.out_proj(z_q)
 
         return z_q, commitment_loss, codebook_loss, indices, z_e, bitrate
+    
+    def embed_code_soft(self, embed_prob):
+        codebook_weights = self.codebook.weight.unsqueeze(0)  # Shape: [1, N, M]
+        # embed_prob: [B, T, N], codebook_weights: [1, N, M] -> output: [B, T, M]
+        output = torch.matmul(embed_prob, codebook_weights)
+        return output
 
     def embed_code(self, embed_id):
         return F.embedding(embed_id, self.codebook.weight)
 
     def decode_code(self, embed_id):
+        if self.training:
+            return self.embed_code_soft(embed_id).transpose(1, 2)
         return self.embed_code(embed_id).transpose(1, 2)
 
     def decode_latents(self, latents):
@@ -96,8 +104,13 @@ class VectorQuantize(nn.Module):
             - 2 * encodings @ codebook.t()
             + codebook.pow(2).sum(1, keepdim=True).t()
         )
-        indices = rearrange((-dist).max(1)[1], "(b t) -> b t", b=latents.size(0))
-        z_q = self.decode_code(indices)
+        #indices = rearrange((-dist).max(1)[1], "(b t) -> b t", b=latents.size(0))  # [B, T]
+        if self.training:
+            indices = nn.functional.gumbel_softmax(-dist, 1., hard=True, dim=-1)
+            indices = rearrange(indices, "(b t) n -> b t n", b=latents.size(0))  # [B, T, N]
+        else:
+            indices = rearrange((-dist).max(1)[1], "(b t) -> b t", b=latents.size(0))  # [B, T]
+        z_q = self.decode_code(indices)  # [B, M, T]
         return z_q, indices
 
 

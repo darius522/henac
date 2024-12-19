@@ -29,12 +29,12 @@ AdamW.betas: [0.8, 0.99]
 AdamW.lr: 0.0001
 ExponentialLR.gamma: 0.999996
 
-resume_ckpt: '/home/daripete/jstsp-dac/runs/sanity_base_2_2_4_20/140k'
+resume_ckpt: '/N/slate/daripete/jstsp-dac/runs/sanity_base_2_2_4_20/140k'
 amp: false
 val_batch_size: 1
 device: cuda
 num_iters: 400000
-save_iters: [10000, 50000, 100000, 140000]
+save_iters: [10000, 50000, 100000, 200000, 300000, 400000]
 valid_freq: 1000
 sample_freq: 10000
 num_workers: 10
@@ -45,7 +45,7 @@ lambdas:
   adv/gen_loss: 1.0
   vq/commitment_loss: 0.25
   vq/codebook_loss: 1.0
-  vq/bitrate_loss: 1.0
+  vq/bitrate_loss: 0.0
 
 VolumeNorm.db: [const, -16]
 
@@ -101,7 +101,7 @@ train/build_dataset.folders:
   #   - /data/russian_speech/
   #   - /data/spanish_speech/
   music_hq:
-    - /home/daripete/jstsp-dac/datasets/fma_train.csv
+    - /N/slate/daripete/jstsp-dac/datasets/fma_train.csv
   # music_uq:
   #   - /data/jamendo
   # general:
@@ -112,10 +112,10 @@ val/build_dataset.folders:
   # speech_hq:
   #   - /data/daps/val
   music_hq:
-    - /home/daripete/jstsp-dac/datasets/fma_valid.csv
+    - /N/slate/daripete/jstsp-dac/datasets/fma_valid.csv
   # general:
   #   - /data/audioset/data/eval_segments/
 
 test/build_dataset.folders:
   music_hq:
-    - /home/daripete/jstsp-dac/fma_test.csv
+    - /N/slate/daripete/jstsp-dac/fma_test.csv

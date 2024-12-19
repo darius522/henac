@@ -1,6 +1,6 @@
 import sys
 
-sys.path.append('/home/daripete/jstsp-dac')
+sys.path.append('/N/slate/daripete/jstsp-dac')
 
 import dac
 from audiotools import AudioSignal
@@ -33,6 +33,7 @@ def main(args):
     # Download a model
     # model_path = dac.utils.download(model_type="24khz")
     model = dac.DAC.load(args.model_path)
+    model.eval()
     model.to("cuda")
 
     dataset = pd.read_csv(args.dataset)
@@ -49,7 +50,7 @@ def main(args):
         # (may run out of GPU memory on long files)
         signal.to(model.device)
 
-        out = model.forward(signal.audio_data)
+        out = model.forward(signal.audio_data, n_quantizers=4)
         y, codes = out['audio'], out['codes']
         bands = resampler(signal.audio_data)
         entropies.append(indices_to_entropy(
@@ -85,19 +86,19 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset",
         type=str,
-        default="/home/daripete/jstsp-dac/datasets/fma_test_subset.csv",
+        default="/N/slate/daripete/jstsp-dac/datasets/fma_test_subset.csv",
         required=False,
     )
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/home/daripete/jstsp-dac/runs/sanity_mid_mid_blindus_brctrl/10k/dac/weights.pth",
+        default="/N/slate/daripete/jstsp-dac/runs/sanity_mid_mid_blindus_brctrl_4/100k/dac/weights.pth",
         required=False,
     )
     parser.add_argument(
         "--output-path",
         type=str,
-        default="/home/daripete/jstsp-dac/runs/sanity_mid_mid_blindus_brctrl/10k/audios",
+        default="/N/slate/daripete/jstsp-dac/runs/sanity_mid_mid_blindus_brctrl_4/100k/audios",
         required=False,
     )
     args = parser.parse_args()

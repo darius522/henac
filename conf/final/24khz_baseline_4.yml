@@ -1,9 +1,10 @@
 # Model setup
 DAC.sample_rate: 24000
 DAC.encoder_dim: 64
-DAC.encoder_rates: [2, 4, 5]
+DAC.encoder_rates: [2, 2, 4, 20]
 DAC.decoder_dim: 1536
-DAC.decoder_rates: [5, 4, 2]
+DAC.decoder_rates: [20, 4, 2, 2]
+DAC.latent_dim: 1024
 
 # Quantization
 DAC.n_codebooks: 32
@@ -28,23 +29,23 @@ AdamW.betas: [0.8, 0.99]
 AdamW.lr: 0.0001
 ExponentialLR.gamma: 0.999996
 
-resume_ckpt: ''
+resume_ckpt: '/N/slate/daripete/jstsp-dac/runs/sanity_base_2_2_4_20/140k'
 amp: false
 val_batch_size: 1
 device: cuda
 num_iters: 400000
-save_iters: [10000, 50000, 100000, 200000]
+save_iters: [10000, 50000, 100000, 200000, 300000, 400000]
 valid_freq: 1000
 sample_freq: 10000
-num_workers: 32
+num_workers: 10
 val_idx: [0, 1, 2, 3, 4, 5, 6, 7]
-seed: 0
 lambdas:
   mel/loss: 15.0
   adv/feat_loss: 2.0
   adv/gen_loss: 1.0
   vq/commitment_loss: 0.25
   vq/codebook_loss: 1.0
+  vq/bitrate_loss: 3.0
 
 VolumeNorm.db: [const, -16]
 
@@ -63,14 +64,14 @@ build_transform.postprocess:
 MultiScaleSTFTLoss.window_lengths: [2048, 512]
 MelSpectrogramLoss.n_mels: [5, 10, 20, 40, 80, 160, 320]
 MelSpectrogramLoss.window_lengths: [32, 64, 128, 256, 512, 1024, 2048]
-MelSpectrogramLoss.mel_fmin: [0, 0, 0, 0, 0, 0, 0]
-MelSpectrogramLoss.mel_fmax: [null, null, null, null, null, null, null]
+MelSpectrogramLoss.mel_fmin: [3000, 3000, 3000, 3000, 3000, 3000, 3000]
+MelSpectrogramLoss.mel_fmax: [6000, 6000, 6000, 6000, 6000, 6000, 6000]
 MelSpectrogramLoss.pow: 1.0
 MelSpectrogramLoss.clamp_eps: 1.0e-5
 MelSpectrogramLoss.mag_weight: 0.0
 
 # Data
-batch_size: 1
+batch_size: 8
 train/AudioDataset.duration: 0.38
 train/AudioDataset.n_examples: 10000000
 
@@ -82,7 +83,7 @@ test/AudioDataset.duration: 10.0
 test/build_transform.augment_prob: 1.0
 test/AudioDataset.n_examples: 1000
 
-AudioLoader.shuffle: true
+AudioLoader.shuffle: false
 AudioDataset.without_replacement: true
 
 train/build_dataset.folders:

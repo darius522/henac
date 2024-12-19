@@ -280,7 +280,7 @@ class DAC(BaseModel, CodecMixin):
         # z, codes, latents, commitment_loss, codebook_loss = self.quantizer(
         #     z, n_quantizers
         # )
-        skip_out = self.skip_aes[0](skip_feat[1])
+        skip_out = self.skip_aes[0](skip_feat[1], n_quantizers=n_quantizers)
         z_skip, codes, latents, commitment_loss, codebook_loss, bitrate_loss = (
             skip_out["audio"],
             skip_out["codes"],
