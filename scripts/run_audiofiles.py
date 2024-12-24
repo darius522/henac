@@ -50,7 +50,7 @@ def main(args):
         # (may run out of GPU memory on long files)
         signal.to(model.device)
 
-        out = model.forward(signal.audio_data, n_quantizers=4)
+        out = model.forward(signal.audio_data, n_quantizers=None)
         y, codes = out['audio'], out['codes']
         bands = resampler(signal.audio_data)
         entropies.append(indices_to_entropy(
@@ -92,13 +92,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs/sanity_mid_mid_blindus_brctrl_4/100k/dac/weights.pth",
+        default="/N/slate/daripete/jstsp-dac/runs/sanity_mid_mid_blindus_nobrctrl_cb_1_dim_16/100k/dac/weights.pth",
         required=False,
     )
     parser.add_argument(
         "--output-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs/sanity_mid_mid_blindus_brctrl_4/100k/audios",
+        default="/N/slate/daripete/jstsp-dac/runs/sanity_mid_mid_blindus_nobrctrl_cb_1_dim_16/100k/audios",
         required=False,
     )
     args = parser.parse_args()

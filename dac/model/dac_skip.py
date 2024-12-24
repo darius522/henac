@@ -84,9 +84,9 @@ class DACSkip(nn.Module):
         latent_dim: int = 256,
         decoder_dim: int = 1024,
         decoder_rates: List[int] = [3],
-        n_codebooks: int = 32,
+        n_codebooks: int = 1,
         codebook_size: int = 1024,
-        codebook_dim: Union[int, list] = 8,
+        codebook_dim: Union[int, list] = 16,
         quantizer_dropout: float = 0.0,
         sample_rate: int = 24000,
     ):

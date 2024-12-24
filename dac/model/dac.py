@@ -130,6 +130,7 @@ class Decoder(nn.Module):
         channels,
         rates,
         d_out: int = 1,
+        skip: bool = False
     ):
         super().__init__()
 
@@ -140,9 +141,11 @@ class Decoder(nn.Module):
         # Add upsampling + MRF blocks
         for i, stride in enumerate(rates):
             input_dim = channels // 2**i
+            if skip and i == 0:  # if skip+concat input, resume normal channel number after first layer
+                channels = channels // 2
             output_dim = channels // 2 ** (i + 1)
             layers += [DecoderBlock(input_dim, output_dim, stride)]
-
+        
         # Add final conv layer
         layers += [
             Snake1d(output_dim),
@@ -173,6 +176,7 @@ class DAC(BaseModel, CodecMixin):
         codebook_dim: Union[int, list] = 8,
         quantizer_dropout: bool = False,
         sample_rate: int = 44100,
+        skip_args: dict = dict(),
     ):
         super().__init__()
 
@@ -208,7 +212,7 @@ class DAC(BaseModel, CodecMixin):
                     latent_dim=latent_dim,
                     codebook_size=codebook_size,
                     quantizer_dropout=quantizer_dropout,
-                    codebook_dim=8
+                    **skip_args
                 )
             )
         )
@@ -218,6 +222,7 @@ class DAC(BaseModel, CodecMixin):
                 latent_dim,
                 latent_dim,
                 decoder_rates[1:],
+                skip=True
             )
         )
 

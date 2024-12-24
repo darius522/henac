@@ -10,7 +10,14 @@ DAC.latent_dim: 1024
 DAC.n_codebooks: 32
 DAC.codebook_size: 1024
 DAC.codebook_dim: 8
-DAC.quantizer_dropout: 0.5
+DAC.quantizer_dropout: 0.0
+
+# Skip-specific
+DAC.skip_args:
+  codebook_dim: 16
+  n_codebooks: 1
+  encoder_rates: [3]
+  decoder_rates: [3]
 
 # Discriminator
 Discriminator.sample_rate: 24000

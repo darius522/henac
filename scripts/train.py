@@ -141,21 +141,52 @@ def load(
     generator = DAC() if generator is None else generator
     discriminator = Discriminator() if discriminator is None else discriminator
     if resume != "":
-        assert os.path.exists(os.path.join(resume, "dac/weights.pth")), "Checkpoint path provided but not found!"
-        generator.load_state_dict(
-            torch.load(os.path.join(resume, "dac/weights.pth"), weights_only=True)[
-                "state_dict"
-            ],
-            strict=False,
-        )
-        trainable_params = ["skip_aes.0", "multidecoders.0"]
+        assert os.path.exists(os.path.join(resume, "dac/tmp.pth")), "Checkpoint path provided but not found!"
+        state_dict = torch.load(os.path.join(resume, "dac/tmp.pth"), weights_only=True)["state_dict"]
+
+        # iterate through special keys, load them
+        special_keys = [
+            "multidecoders.0.model.0.block.0.alpha",
+            "multidecoders.0.model.0.block.1.parametrizations.weight.original0",
+            "multidecoders.0.model.0.block.1.parametrizations.weight.original1",
+        ]
+        for name, param in state_dict.items():
+            if any([key in name for key in special_keys]):
+                non_one_dim = [i for i, size in enumerate(param.shape) if size != 1][0]
+                if 'alpha' in name:
+                    new_param = torch.nn.init.trunc_normal_(torch.zeros_like(param), std=0.02)
+                else:
+                    new_param = torch.ones_like(param)
+                state_dict[name] = torch.concat([param, new_param], non_one_dim)
+
+        generator.load_state_dict(state_dict, strict=False,)
+        trainable_params = ["skip_aes.0"]
+        partially_trainable_params = special_keys
+
+        # Register a hook to apply the mask to gradients
+        def gradient_masking_hook(grad):
+            mask = torch.zeros_like(grad)
+            non_one_axis = [i for i, size in enumerate(mask.shape) if size == 1024]
+            assert len(non_one_axis) == 1, "Tensor must have exactly one axis with size not equal to 1."
+            axis = non_one_axis[0]
+            # Calculate the midpoint of the non-one axis
+            midpoint = mask.shape[axis] // 2
+            # Dynamically slice and set the second half to 1
+            slices = [slice(None)] * len(mask.shape)  # Create a list of slice(None) for all dimensions
+            slices[axis] = slice(midpoint, None)     # Update the slice for the identified axis
+            mask[tuple(slices)] = 1                  # Apply the slices and set the values to 1
+            return grad * mask
+
         for name, param in generator.named_parameters():
-            if not any([p in name for p in trainable_params]):
+            if any([p in name for p in trainable_params]):
+                tracker.print(f"Include parameter {name} from generator training.")
+            elif any([p in name for p in partially_trainable_params]):
+                param.register_hook(gradient_masking_hook)
+                tracker.print(f"Partially include parameter {name} from generator training (512:-1).")
+            else:
                 tracker.print(f"Exclude parameter {name} from generator training.")
                 param.requires_grad = False
-            else:
-                tracker.print(f"Include parameter {name} from generator training.")
-
+    
     tracker.print(generator)
     tracker.print(discriminator)
 
@@ -191,7 +222,7 @@ def load(
     stft_loss = losses.MultiScaleSTFTLoss()
     mel_loss = losses.MelSpectrogramLoss()
     gan_loss = losses.GANLoss(discriminator)
-    
+
     sp = julius.SplitBands(sample_rate, cutoffs=[3000, 6000]).to('cuda')
 
     return State(
