@@ -99,27 +99,65 @@ class Encoder(nn.Module):
                 skips.append(x.clone())
         skips = list(reversed(skips))
         return x, skips
+    
 
-
-class DecoderBlock(nn.Module):
+class MergerDecoderBlock(nn.Module):
     def __init__(self, input_dim: int = 16, output_dim: int = 8, stride: int = 1):
         super().__init__()
-        self.block = nn.Sequential(
+        
+        self.skip = nn.Sequential(
             Snake1d(input_dim),
             WNConvTranspose1d(
+            input_dim,
+            output_dim,
+            kernel_size=2 * stride,
+            stride=stride,
+            padding=math.ceil(stride / 2),
+            output_padding=(stride % 2) if stride > 1 else 0,
+        ))
+        self.blind = nn.Sequential(
+            Snake1d(input_dim),
+            WNConvTranspose1d(
+            input_dim,
+            output_dim,
+            kernel_size=2 * stride,
+            stride=stride,
+            padding=math.ceil(stride / 2),
+            output_padding=(stride % 2) if stride > 1 else 0,
+        ))
+        
+    def forward(self, x_skip, x_blind):
+        mn = min(x_skip.shape[-1], x_blind.shape[-1])
+        return self.blind(x_blind[..., :mn])# + self.skip(x_skip[..., :mn])
+        
+
+class DecoderBlock(nn.Module):
+    def __init__(self, input_dim: int = 16, output_dim: int = 8, stride: int = 1, merger_block: bool = False):
+        super().__init__()
+        
+        if merger_block:
+            self.t_conv = MergerDecoderBlock(input_dim=input_dim, output_dim=output_dim, stride=stride)
+        else:
+            self.t_conv = WNConvTranspose1d(
                 input_dim,
                 output_dim,
                 kernel_size=2 * stride,
                 stride=stride,
                 padding=math.ceil(stride / 2),
-                output_padding = (stride % 2) if stride > 1 else 0,
-            ),
+                output_padding=(stride % 2) if stride > 1 else 0,
+            )
+
+        self.block = nn.Sequential(
             ResidualUnit(output_dim, dilation=1),
             ResidualUnit(output_dim, dilation=3),
             ResidualUnit(output_dim, dilation=9),
         )
 
-    def forward(self, x):
+    def forward(self, x, x_blind=None):
+        if x_blind is not None and isinstance(self.t_conv, MergerDecoderBlock):
+            x = self.t_conv(x, x_blind)
+        else:
+            x = self.t_conv(x)
         return self.block(x)
 
 
@@ -141,11 +179,13 @@ class Decoder(nn.Module):
         # Add upsampling + MRF blocks
         for i, stride in enumerate(rates):
             input_dim = channels // 2**i
-            if skip and i == 0:  # if skip+concat input, resume normal channel number after first layer
-                channels = channels // 2
+            if skip and i == 0:  # if skip+add input
+                merger = True
+            else:
+                merger = False
             output_dim = channels // 2 ** (i + 1)
-            layers += [DecoderBlock(input_dim, output_dim, stride)]
-        
+            layers += [DecoderBlock(input_dim, output_dim, stride, merger_block=merger)]
+                    
         # Add final conv layer
         layers += [
             Snake1d(output_dim),
@@ -155,10 +195,13 @@ class Decoder(nn.Module):
 
         self.model = nn.Sequential(*layers)
 
-    def forward(self, x, bu_level=None):
+    def forward(self, x, blind_level=None, x_blind=None):
         for i, m in enumerate(self.model):
-            x = m(x)
-            if i == bu_level: # optional: bail early for bu features
+            if isinstance(m, DecoderBlock) and x_blind is not None:
+                x = m(x, x_blind)
+            else:
+                x = m(x)
+            if i == blind_level: # optional: bail early for blind features
                 return x
         return x
 
@@ -219,8 +262,8 @@ class DAC(BaseModel, CodecMixin):
         self.multidecoders = nn.ModuleList([])
         self.multidecoders.append(
             Decoder(
-                latent_dim,
-                latent_dim,
+                latent_dim//2,
+                latent_dim//2,
                 decoder_rates[1:],
                 skip=True
             )
@@ -296,7 +339,7 @@ class DAC(BaseModel, CodecMixin):
         )
         return z_main, z_skip, codes, latents, commitment_loss, codebook_loss, bitrate_loss
 
-    def decode(self, z: torch.Tensor, bu_level: int | None = None):
+    def decode(self, z: torch.Tensor, blind_level: int | None = None):
         """Decode given latent codes and return audio data
 
         Parameters
@@ -313,7 +356,7 @@ class DAC(BaseModel, CodecMixin):
             "audio" : Tensor[B x 1 x length]
                 Decoded audio data.
         """
-        return self.decoder(z, bu_level)
+        return self.decoder(z, blind_level)
 
     def autoencode_skips(self, skips: List, return_output: bool = False, **args):
         outputs = [ae(skip, **args) for skip, ae in zip(skips, self.skip_aes)]
@@ -371,9 +414,9 @@ class DAC(BaseModel, CodecMixin):
             audio_data, n_quantizers
         )
 
-        x_main = self.decode(z_main, bu_level=0)
-        z_skip = torch.cat([x_main[..., :z_skip.shape[-1]], z_skip], 1)
-        x_skip = self.multidecoders[0](z_skip)
+        z_blind = self.decode(z_main, blind_level=0)
+        
+        x_skip = self.multidecoders[0](z_skip, blind_level=None, x_blind=z_blind)
         return {
             "audio": x_skip[..., :length],
             "z": z_skip,

@@ -16,7 +16,6 @@ from dac.nn.layers import EncoderBlock, DecoderBlock
 from dac.nn.layers import init_weights
 
 from plots.plot import residual_plots
-from dac.nn.encodec_modules import SEANetEncoder, SEANetDecoder
 
 class EncoderSkip(nn.Module):
     def __init__(
@@ -84,9 +83,9 @@ class DACSkip(nn.Module):
         latent_dim: int = 256,
         decoder_dim: int = 1024,
         decoder_rates: List[int] = [3],
-        n_codebooks: int = 1,
+        n_codebooks: int = 4,
         codebook_size: int = 1024,
-        codebook_dim: Union[int, list] = 16,
+        codebook_dim: Union[int, list] = 8,
         quantizer_dropout: float = 0.0,
         sample_rate: int = 24000,
     ):

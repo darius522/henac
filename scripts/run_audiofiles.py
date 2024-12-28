@@ -92,13 +92,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs/sanity_mid_mid_blindus_nobrctrl_cb_1_dim_16/100k/dac/weights.pth",
+        default="/N/slate/daripete/jstsp-dac/runs/_dummy/10k/dac/weights.pth",
         required=False,
     )
     parser.add_argument(
         "--output-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs/sanity_mid_mid_blindus_nobrctrl_cb_1_dim_16/100k/audios",
+        default="/N/slate/daripete/jstsp-dac/runs/_dummy/10k/audios",
         required=False,
     )
     args = parser.parse_args()

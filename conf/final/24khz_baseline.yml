@@ -14,8 +14,8 @@ DAC.quantizer_dropout: 0.0
 
 # Skip-specific
 DAC.skip_args:
-  codebook_dim: 16
-  n_codebooks: 1
+  codebook_dim: 8
+  n_codebooks: 4
   encoder_rates: [3]
   decoder_rates: [3]
 
@@ -36,7 +36,7 @@ AdamW.betas: [0.8, 0.99]
 AdamW.lr: 0.0001
 ExponentialLR.gamma: 0.999996
 
-resume_ckpt: '/N/slate/daripete/jstsp-dac/runs/sanity_base_2_2_4_20/140k'
+resume_ckpt: '' #'/N/slate/daripete/jstsp-dac/runs/sanity_base_2_2_4_20/140k'
 amp: false
 val_batch_size: 1
 device: cuda
