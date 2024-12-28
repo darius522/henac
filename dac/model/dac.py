@@ -325,19 +325,19 @@ class DAC(BaseModel, CodecMixin):
                 Number of samples in input audio
         """
         z_main, skip_feat = self.encoder(audio_data)
-        # z, codes, latents, commitment_loss, codebook_loss = self.quantizer(
-        #     z, n_quantizers
-        # )
-        skip_out = self.skip_aes[0](skip_feat[1], n_quantizers=n_quantizers)
-        z_skip, codes, latents, commitment_loss, codebook_loss, bitrate_loss = (
-            skip_out["audio"],
-            skip_out["codes"],
-            skip_out["latents"],
-            skip_out["vq/commitment_loss"],
-            skip_out["vq/codebook_loss"],
-            skip_out["vq/bitrate_loss"],
+        z_main, codes, latents, commitment_loss, codebook_loss, bitrate_loss = self.quantizer(
+            z_main, n_quantizers
         )
-        return z_main, z_skip, codes, latents, commitment_loss, codebook_loss, bitrate_loss
+        skip_out = self.skip_aes[0](skip_feat[1], n_quantizers=n_quantizers)
+        # z_skip, codes, latents, commitment_loss, codebook_loss, bitrate_loss = (
+        #     skip_out["audio"],
+        #     skip_out["codes"],
+        #     skip_out["latents"],
+        #     skip_out["vq/commitment_loss"],
+        #     skip_out["vq/codebook_loss"],
+        #     skip_out["vq/bitrate_loss"],
+        # )
+        return z_main, skip_out["audio"], codes, latents, commitment_loss, codebook_loss, bitrate_loss
 
     def decode(self, z: torch.Tensor, blind_level: int | None = None):
         """Decode given latent codes and return audio data
@@ -415,7 +415,6 @@ class DAC(BaseModel, CodecMixin):
         )
 
         z_blind = self.decode(z_main, blind_level=0)
-        
         x_skip = self.multidecoders[0](z_skip, blind_level=None, x_blind=z_blind)
         return {
             "audio": x_skip[..., :length],
