@@ -21,4 +21,4 @@ def residual_plots(x, r, i):
     from random import randint
     rand = randint(0,1000)
     plt.tight_layout()
-    plt.savefig(os.path.join('/home/daripete/descript-audio-codec/runs/scratch_baseline_24khz_lr_1e-4/plots', f'{rand}.png'))
+    plt.savefig(os.path.join('/N/slate/daripete/descript-audio-codec/runs/scratch_baseline_24khz_lr_1e-4/plots', f'{rand}.png'))

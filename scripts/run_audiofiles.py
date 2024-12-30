@@ -1,6 +1,6 @@
 import sys
 
-sys.path.append('/home/daripete/jstsp-dac')
+sys.path.append('/N/slate/daripete/jstsp-dac')
 
 import dac
 from audiotools import AudioSignal
@@ -57,8 +57,8 @@ def main(args):
             codes.permute(0, 2, 1), time_axis=1, size=1024
         ).detach().cpu().numpy())
 
-        y, signal = y.to('cpu').detach(), bands[1].to('cpu').detach()
-        y = normalize_to_match_peak_batched(y, signal)
+        y, signal = y.to('cpu').detach(), signal.audio_data.to('cpu').detach()
+        # y = normalize_to_match_peak_batched(y, signal)
         snrs.append(ScaleInvariantSignalNoiseRatio().to("cpu")(y, signal))
         
         sf.write(
@@ -86,19 +86,19 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset",
         type=str,
-        default="/home/daripete/jstsp-dac/datasets/fma_test_subset.csv",
+        default="/N/slate/daripete/jstsp-dac/datasets/fma_test_subset.csv",
         required=False,
     )
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/home/daripete/jstsp-dac/runs/_dummy/10k/dac/weights.pth",
+        default="/N/slate/daripete/jstsp-dac/runs/_dummy/latest/dac/weights.pth",
         required=False,
     )
     parser.add_argument(
         "--output-path",
         type=str,
-        default="/home/daripete/jstsp-dac/runs/_dummy/10k/audios",
+        default="/N/slate/daripete/jstsp-dac/runs/_dummy/audios",
         required=False,
     )
     args = parser.parse_args()

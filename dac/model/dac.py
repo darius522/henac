@@ -127,8 +127,8 @@ class MergerDecoderBlock(nn.Module):
         ))
         
     def forward(self, x_skip, x_blind):
-        mn = min(x_skip.shape[-1], x_blind.shape[-1])
-        return self.blind(x_blind[..., :mn])# + self.skip(x_skip[..., :mn])
+        #mn = min(x_skip.shape[-1], x_blind.shape[-1])
+        return self.blind(x_blind) #[..., :mn])# + self.skip(x_skip[..., :mn])
         
 
 class DecoderBlock(nn.Module):
@@ -199,6 +199,7 @@ class Decoder(nn.Module):
         for i, m in enumerate(self.model):
             if isinstance(m, DecoderBlock) and x_blind is not None:
                 x = m(x, x_blind)
+                x_blind = None
             else:
                 x = m(x)
             if i == blind_level: # optional: bail early for blind features
@@ -247,18 +248,18 @@ class DAC(BaseModel, CodecMixin):
             quantizer_dropout=quantizer_dropout,
         )
         from copy import deepcopy
-        self.skip_aes = nn.ModuleList([])
-        self.skip_aes.append(
-            deepcopy(
-                DACSkip(
-                    encoder_dim=latent_dim//2,
-                    latent_dim=latent_dim,
-                    codebook_size=codebook_size,
-                    quantizer_dropout=quantizer_dropout,
-                    **skip_args
-                )
-            )
-        )
+        # self.skip_aes = nn.ModuleList([])
+        # self.skip_aes.append(
+        #     deepcopy(
+        #         DACSkip(
+        #             encoder_dim=latent_dim//2,
+        #             latent_dim=latent_dim,
+        #             codebook_size=codebook_size,
+        #             quantizer_dropout=quantizer_dropout,
+        #             **skip_args
+        #         )
+        #     )
+        # )
         self.multidecoders = nn.ModuleList([])
         self.multidecoders.append(
             Decoder(
@@ -328,7 +329,7 @@ class DAC(BaseModel, CodecMixin):
         z_main, codes, latents, commitment_loss, codebook_loss, bitrate_loss = self.quantizer(
             z_main, n_quantizers
         )
-        skip_out = self.skip_aes[0](skip_feat[1], n_quantizers=n_quantizers)
+        skip_out = {'audio':None}#self.skip_aes[0](skip_feat[1], n_quantizers=n_quantizers)
         # z_skip, codes, latents, commitment_loss, codebook_loss, bitrate_loss = (
         #     skip_out["audio"],
         #     skip_out["codes"],

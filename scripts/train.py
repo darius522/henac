@@ -220,7 +220,8 @@ def val_loop(batch, state, accel):
     )
 
     out = state.generator(signal.audio_data, signal.sample_rate)
-    signal = AudioSignal(state.resampler(signal.audio_data.clone())[1], signal.sample_rate)
+    band = state.resampler(signal.audio_data.clone())[1]
+    signal = AudioSignal(band, signal.sample_rate)
     recons = AudioSignal(out["audio"], signal.sample_rate)
 
     return {
