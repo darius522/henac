@@ -31,12 +31,6 @@ class VectorQuantize(nn.Module):
         self.out_proj = WNConv1d(codebook_dim, input_dim, kernel_size=1)
         self.codebook = nn.Embedding(codebook_size, codebook_dim)
 
-    def indices_to_bitrate(self, indices, time_axis=1, eps=1e-20, size=1024) -> torch.Tensor:
-        n_step = indices.shape[time_axis]
-        #oh_indices  = torch.nn.functional.one_hot(indices, num_classes=size)
-        p = (torch.sum(indices, dim=time_axis) + eps) / n_step
-        return -torch.sum(torch.mul(p, torch.log(p)), axis=-1) * n_step
-
     def forward(self, z):
         """Quantized the input tensor using a fixed codebook and returns
         the corresponding codebook vectors
@@ -63,7 +57,6 @@ class VectorQuantize(nn.Module):
         # Factorized codes (ViT-VQGAN) Project input into low-dimensional space
         z_e = self.in_proj(z)  # z_e : (B x D x T)
         z_q, indices = self.decode_latents(z_e)
-        bitrate = self.indices_to_bitrate(indices)
 
         commitment_loss = F.mse_loss(z_e, z_q.detach(), reduction="none").mean([1, 2])
         codebook_loss = F.mse_loss(z_q, z_e.detach(), reduction="none").mean([1, 2])
@@ -74,20 +67,12 @@ class VectorQuantize(nn.Module):
 
         z_q = self.out_proj(z_q)
 
-        return z_q, commitment_loss, codebook_loss, indices, z_e, bitrate
-    
-    def embed_code_soft(self, embed_prob):
-        codebook_weights = self.codebook.weight.unsqueeze(0)  # Shape: [1, N, M]
-        # embed_prob: [B, T, N], codebook_weights: [1, N, M] -> output: [B, T, M]
-        output = torch.matmul(embed_prob, codebook_weights)
-        return output
+        return z_q, commitment_loss, codebook_loss, indices, z_e
 
     def embed_code(self, embed_id):
         return F.embedding(embed_id, self.codebook.weight)
 
     def decode_code(self, embed_id):
-        if self.training:
-            return self.embed_code_soft(embed_id).transpose(1, 2)
         return self.embed_code(embed_id).transpose(1, 2)
 
     def decode_latents(self, latents):
@@ -104,13 +89,8 @@ class VectorQuantize(nn.Module):
             - 2 * encodings @ codebook.t()
             + codebook.pow(2).sum(1, keepdim=True).t()
         )
-        #indices = rearrange((-dist).max(1)[1], "(b t) -> b t", b=latents.size(0))  # [B, T]
-        if self.training:
-            indices = nn.functional.gumbel_softmax(-dist, 1., hard=True, dim=-1)
-            indices = rearrange(indices, "(b t) n -> b t n", b=latents.size(0))  # [B, T, N]
-        else:
-            indices = rearrange((-dist).max(1)[1], "(b t) -> b t", b=latents.size(0))  # [B, T]
-        z_q = self.decode_code(indices)  # [B, M, T]
+        indices = rearrange((-dist).max(1)[1], "(b t) -> b t", b=latents.size(0))
+        z_q = self.decode_code(indices)
         return z_q, indices
 
 
@@ -127,7 +107,6 @@ class ResidualVectorQuantize(nn.Module):
         codebook_size: int = 1024,
         codebook_dim: Union[int, list] = 8,
         quantizer_dropout: float = 0.0,
-        br_per_cb: int = 1.,
     ):
         super().__init__()
         if isinstance(codebook_dim, int):
@@ -144,7 +123,6 @@ class ResidualVectorQuantize(nn.Module):
             ]
         )
         self.quantizer_dropout = quantizer_dropout
-        self.br_per_cb = br_per_cb
 
     def forward(self, z, n_quantizers: int = None):
         """Quantized the input tensor using a fixed set of `n` codebooks and returns
@@ -179,8 +157,6 @@ class ResidualVectorQuantize(nn.Module):
         residual = z
         commitment_loss = 0
         codebook_loss = 0
-        bitrate_loss = 0
-        total_bitrate = 0
 
         codebook_indices = []
         latents = []
@@ -193,13 +169,12 @@ class ResidualVectorQuantize(nn.Module):
             n_dropout = int(z.shape[0] * self.quantizer_dropout)
             n_quantizers[:n_dropout] = dropout[:n_dropout]
             n_quantizers = n_quantizers.to(z.device)
-            target_bitrate = n_quantizers * self.br_per_cb
 
         for i, quantizer in enumerate(self.quantizers):
             if self.training is False and i >= n_quantizers:
                 break
 
-            z_q_i, commitment_loss_i, codebook_loss_i, indices_i, z_e_i, bitrate = quantizer(
+            z_q_i, commitment_loss_i, codebook_loss_i, indices_i, z_e_i = quantizer(
                 residual
             )
 
@@ -213,7 +188,6 @@ class ResidualVectorQuantize(nn.Module):
             # Sum losses
             commitment_loss += (commitment_loss_i * mask).mean()
             codebook_loss += (codebook_loss_i * mask).mean()
-            total_bitrate += (bitrate * mask) / 1000.  #kbps
 
             codebook_indices.append(indices_i)
             latents.append(z_e_i)
@@ -221,10 +195,7 @@ class ResidualVectorQuantize(nn.Module):
         codes = torch.stack(codebook_indices, dim=1)
         latents = torch.cat(latents, dim=1)
 
-        if self.training:
-            bitrate_loss = F.mse_loss(total_bitrate, target_bitrate, reduction="none").mean()
-
-        return z_q, codes, latents, commitment_loss, codebook_loss, bitrate_loss
+        return z_q, codes, latents, commitment_loss, codebook_loss
 
     def from_codes(self, codes: torch.Tensor):
         """Given the quantized codes, reconstruct the continuous representation

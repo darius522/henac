@@ -52,13 +52,13 @@ def main(args):
 
         out = model.forward(signal.audio_data, n_quantizers=None)
         y, codes = out['audio'], out['codes']
-        bands = resampler(signal.audio_data)
+        #bands = resampler(signal.audio_data)
         entropies.append(indices_to_entropy(
             codes.permute(0, 2, 1), time_axis=1, size=1024
         ).detach().cpu().numpy())
 
-        y, signal = y.to('cpu').detach(), bands[1].to('cpu').detach()
-        y = normalize_to_match_peak_batched(y, signal)
+        y, signal = y.to('cpu').detach(), signal.audio_data.to('cpu').detach()
+        #y = normalize_to_match_peak_batched(y, signal)
         snrs.append(ScaleInvariantSignalNoiseRatio().to("cpu")(y, signal))
         
         sf.write(
@@ -92,13 +92,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/home/daripete/jstsp-dac/runs/_dummy/10k/dac/weights.pth",
+        default="/home/daripete/jstsp-dac/runs/baseline/latest/dac/weights.pth",
         required=False,
     )
     parser.add_argument(
         "--output-path",
         type=str,
-        default="/home/daripete/jstsp-dac/runs/_dummy/10k/audios",
+        default="/home/daripete/jstsp-dac/runs/baseline/audios",
         required=False,
     )
     args = parser.parse_args()

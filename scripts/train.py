@@ -220,7 +220,8 @@ def val_loop(batch, state, accel):
     )
 
     out = state.generator(signal.audio_data, signal.sample_rate)
-    signal = AudioSignal(state.resampler(signal.audio_data.clone())[1], signal.sample_rate)
+    #band = state.resampler(signal.audio_data.clone())[1]
+    #signal = AudioSignal(signal, signal.sample_rate)
     recons = AudioSignal(out["audio"], signal.sample_rate)
 
     return {
@@ -251,7 +252,7 @@ def train_loop(state, batch, accel, lambdas, save_path):
         recons = AudioSignal(out["audio"], signal.sample_rate)
         commitment_loss = out["vq/commitment_loss"]
         codebook_loss = out["vq/codebook_loss"]
-        bitrate_loss = out["vq/bitrate_loss"]
+        #bitrate_loss = out["vq/bitrate_loss"]
 
     with accel.autocast():
         output["adv/disc_loss"] = state.gan_loss.discriminator_loss(recons, signal)
@@ -275,7 +276,7 @@ def train_loop(state, batch, accel, lambdas, save_path):
         ) = state.gan_loss.generator_loss(recons, signal)
         output["vq/commitment_loss"] = commitment_loss
         output["vq/codebook_loss"] = codebook_loss
-        output["vq/bitrate_loss"] = bitrate_loss
+        #output["vq/bitrate_loss"] = bitrate_loss
         output["loss"] = sum([v * output[k] for k, v in lambdas.items() if k in output])
 
     state.optimizer_g.zero_grad()
@@ -338,7 +339,8 @@ def save_samples(state, val_idx, writer):
     )
 
     out = state.generator(signal.audio_data, signal.sample_rate)
-    signal = AudioSignal(state.resampler(signal.audio_data.clone())[1], signal.sample_rate)
+    #band = state.resampler(signal.audio_data.clone())[1]
+    #signal = AudioSignal(signal, signal.sample_rate)
     recons = AudioSignal(out["audio"], signal.sample_rate)
 
     audio_dict = {"recons": recons}
