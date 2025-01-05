@@ -30,21 +30,20 @@ def indices_to_entropy(indices, time_axis=1, eps=1e-20, size=1024) -> torch.Tens
 def main(args):
     if not os.path.exists(args.output_path):
         os.makedirs(args.output_path)
-    # Download a model
-    # model_path = dac.utils.download(model_type="24khz")
+
     model = dac.DAC.load(args.model_path)
     model.eval()
     model.to("cuda")
 
     dataset = pd.read_csv(args.dataset)
-    entropies, snrs = [], []
+    entropies, snrs = [], dict(band=[], full=[])
     
     resampler = julius.SplitBands(24_000, cutoffs=[3000, 6000]).to('cuda')
-
+    duration = 5.0
     for i, row in tqdm(dataset.iterrows(), total=len(dataset)):
         fname = os.path.basename(row.path).split('.')[0]
         # Load audio signal file
-        signal = AudioSignal(row.path, duration=5.0)
+        signal = AudioSignal(row.path, duration=duration)
 
         # Encode audio signal as one long file
         # (may run out of GPU memory on long files)
@@ -56,19 +55,30 @@ def main(args):
         entropies.append(indices_to_entropy(
             codes.permute(0, 2, 1), time_axis=1, size=1024
         ).detach().cpu().numpy())
+        
+        y_band, signal_band = resampler(y)[1:].sum(0), -resampler(signal.audio_data)[1:].sum(0)
+        y_band = normalize_to_match_peak_batched(y_band, signal_band)
+        diff = (y_band + signal_band).to('cpu').detach()
 
         y, signal = y.to('cpu').detach(), signal.audio_data.to('cpu').detach()
-        #y = normalize_to_match_peak_batched(y, signal)
-        snrs.append(ScaleInvariantSignalNoiseRatio().to("cpu")(y, signal))
+        y_band, signal_band = y_band.to('cpu').detach(), signal_band.to('cpu').detach()
+        snrs['full'].append(ScaleInvariantSignalNoiseRatio().to("cpu")(y, signal))
+        snrs['band'].append(ScaleInvariantSignalNoiseRatio().to("cpu")(y_band, signal_band))
         
         sf.write(
-            os.path.join(args.output_path, f"{fname}_full_i.wav"),
-            signal.reshape(-1).numpy(),
+            os.path.join(args.output_path, f"{fname}_mid_input.wav"),
+            signal_band.reshape(-1).numpy(),
             samplerate=24_000,
         )
         sf.write(
-            os.path.join(args.output_path, f"{fname}_full_o.wav"),
-            y.reshape(-1).numpy(),
+            os.path.join(args.output_path, f"{fname}_mid_output.wav"),
+            y_band.reshape(-1).numpy(),
+            samplerate=24_000,
+        )
+
+        sf.write(
+            os.path.join(args.output_path, f"{fname}_mid_diff.wav"),
+            diff.reshape(-1).numpy(),
             samplerate=24_000,
         )
         
@@ -77,7 +87,8 @@ def main(args):
     
     br_per_cb = np.array(entropies).mean((0,1))
     print(f'Overall Entropy: {np.round(br_per_cb, 1)}')
-    print(f'Overall SNR: {np.round(np.mean(snrs), 1)}')
+    for k, v in snrs.items():
+        print(f'Overall SNR for {k}: {np.round(np.mean(v), 1)}')
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -92,13 +103,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/home/daripete/jstsp-dac/runs/baseline/latest/dac/weights.pth",
+        default="/N/slate/daripete/jstsp-dac/runs/midband/200k/dac/weights.pth",
         required=False,
     )
     parser.add_argument(
         "--output-path",
         type=str,
-        default="/home/daripete/jstsp-dac/runs/baseline/audios",
+        default="/N/slate/daripete/jstsp-dac/runs/midband/200k/audios",
         required=False,
     )
     args = parser.parse_args()

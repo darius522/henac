@@ -127,8 +127,8 @@ class MergerDecoderBlock(nn.Module):
         ))
         
     def forward(self, x_skip, x_blind):
-        #mn = min(x_skip.shape[-1], x_blind.shape[-1])
-        return self.blind(x_blind) #[..., :mn])# + self.skip(x_skip[..., :mn])
+        mn = min(x_skip.shape[-1], x_blind.shape[-1])
+        return self.blind(x_blind[..., :mn]) + self.skip(x_skip[..., :mn])
         
 
 class DecoderBlock(nn.Module):
@@ -197,13 +197,13 @@ class Decoder(nn.Module):
 
     def forward(self, x, blind_level=None, x_blind=None):
         for i, m in enumerate(self.model):
-            # if isinstance(m, DecoderBlock) and x_blind is not None:
-            #     x = m(x, x_blind)
-            # else:
-            #     x = m(x)
-            # if i == blind_level: # optional: bail early for blind features
-            #     return x
-            x = m(x)
+            if isinstance(m, DecoderBlock) and x_blind is not None:
+                x = m(x, x_blind)
+                x_blind = None
+            else:
+                x = m(x)
+            if i == blind_level: # optional: bail early for blind features
+                return x
         return x
 
 
@@ -247,28 +247,27 @@ class DAC(BaseModel, CodecMixin):
             codebook_dim=codebook_dim,
             quantizer_dropout=quantizer_dropout,
         )
-        # from copy import deepcopy
-        # self.skip_aes = nn.ModuleList([])
-        # self.skip_aes.append(
-        #     deepcopy(
-        #         DACSkip(
-        #             encoder_dim=latent_dim//2,
-        #             latent_dim=latent_dim,
-        #             codebook_size=codebook_size,
-        #             quantizer_dropout=quantizer_dropout,
-        #             **skip_args
-        #         )
-        #     )
-        # )
-        # self.multidecoders = nn.ModuleList([])
-        # self.multidecoders.append(
-        #     Decoder(
-        #         latent_dim//2,
-        #         latent_dim//2,
-        #         decoder_rates[1:],
-        #         skip=True
-        #     )
-        # )
+        from copy import deepcopy
+        self.skip_aes = nn.ModuleList([])
+        self.skip_aes.append(
+            deepcopy(
+                DACSkip(
+                    encoder_dim=latent_dim//2,
+                    latent_dim=latent_dim,
+                    codebook_size=codebook_size,
+                    **skip_args
+                )
+            )
+        )
+        self.multidecoders = nn.ModuleList([])
+        self.multidecoders.append(
+            Decoder(
+                latent_dim//2,
+                latent_dim//2,
+                decoder_rates[1:],
+                skip=True
+            )
+        )
 
         self.decoder = Decoder(
             latent_dim,
@@ -326,19 +325,17 @@ class DAC(BaseModel, CodecMixin):
                 Number of samples in input audio
         """
         z_main, skip_feat = self.encoder(audio_data)
-        z_main, codes, latents, commitment_loss, codebook_loss = self.quantizer(
-            z_main, n_quantizers
+        z_main, _, _, _, _ = self.quantizer(z_main, n_quantizers)
+        skip_out = self.skip_aes[0](skip_feat[1], n_quantizers=n_quantizers)
+        x_skip, codes, latents, commitment_loss, codebook_loss = (
+            skip_out["audio"],
+            skip_out["codes"],
+            skip_out["latents"],
+            skip_out["vq/commitment_loss"],
+            skip_out["vq/codebook_loss"],
+            #skip_out["vq/bitrate_loss"],
         )
-        #skip_out = self.skip_aes[0](skip_feat[1], n_quantizers=n_quantizers)
-        # z_skip, codes, latents, commitment_loss, codebook_loss, bitrate_loss = (
-        #     skip_out["audio"],
-        #     skip_out["codes"],
-        #     skip_out["latents"],
-        #     skip_out["vq/commitment_loss"],
-        #     skip_out["vq/codebook_loss"],
-        #     skip_out["vq/bitrate_loss"],
-        # )
-        return z_main, None, codes, latents, commitment_loss, codebook_loss
+        return z_main, x_skip, codes, latents, commitment_loss, codebook_loss
 
     def decode(self, z: torch.Tensor, blind_level: int | None = None):
         """Decode given latent codes and return audio data
@@ -411,12 +408,12 @@ class DAC(BaseModel, CodecMixin):
         """
         length = audio_data.shape[-1]
         audio_data = self.preprocess(audio_data, sample_rate)
-        z_main, z_skip, codes, latents, commitment_loss, codebook_loss = self.encode(
+        z_main, x_skip, codes, latents, commitment_loss, codebook_loss = self.encode(
             audio_data, n_quantizers
         )
 
-        x_blind = self.decode(z_main) #, blind_level=0)
-        #x_skip = self.multidecoders[0](z_skip, blind_level=None, x_blind=z_blind)
+        x_blind = self.decode(z_main, blind_level=0)
+        x_blind = self.multidecoders[0](x_skip, blind_level=None, x_blind=x_blind)
         return {
             "audio": x_blind[..., :length],
             "z": z_main,
