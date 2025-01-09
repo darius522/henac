@@ -22,7 +22,7 @@ from audiotools.ml.decorators import when
 from torch.utils.tensorboard import SummaryWriter
 
 import dac
-from utils.audio_utils import normalize_to_match_peak_batched
+from utils.audio_utils import normalize_to_match_peak_batched, empirical_entropy_loss
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -254,7 +254,7 @@ def train_loop(state, batch, accel, lambdas, save_path):
         recons = AudioSignal(out["audio"], signal.sample_rate)
         commitment_loss = out["vq/commitment_loss"]
         codebook_loss = out["vq/codebook_loss"]
-        #bitrate_loss = out["vq/bitrate_loss"]
+        codes = out["codes"]
 
     with accel.autocast():
         output["adv/disc_loss"] = state.gan_loss.discriminator_loss(recons, signal)
@@ -278,7 +278,7 @@ def train_loop(state, batch, accel, lambdas, save_path):
         ) = state.gan_loss.generator_loss(recons, signal)
         output["vq/commitment_loss"] = commitment_loss
         output["vq/codebook_loss"] = codebook_loss
-        #output["vq/bitrate_loss"] = bitrate_loss
+        output["vq/entropy_loss"] = empirical_entropy_loss(codes, 1024)
         output["loss"] = sum([v * output[k] for k, v in lambdas.items() if k in output])
 
     state.optimizer_g.zero_grad()

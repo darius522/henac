@@ -103,13 +103,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs/midband/200k/dac/weights.pth",
+        default="/N/slate/daripete/jstsp-dac/runs/midband_dim_32_ec_20/100k/dac/weights.pth",
         required=False,
     )
     parser.add_argument(
         "--output-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs/midband/200k/audios",
+        default="/N/slate/daripete/jstsp-dac/runs/midband_dim_32_ec_20/100k/audios",
         required=False,
     )
     args = parser.parse_args()

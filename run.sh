@@ -20,6 +20,6 @@ CODE_ROOT="$PWD"
 
 CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun \
                     --nproc_per_node gpu scripts/train.py \
-                    --args.load conf/final/24khz_mb.yml \
+                    --args.load conf/final/24khz_mb_7.yml \
                     --seed 1 \
-                    --save_path runs/midband_dim64
+                    --save_path runs/midband_dim_32_ec_20

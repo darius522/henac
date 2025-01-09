@@ -14,7 +14,7 @@ DAC.quantizer_dropout: 0.5
 
 # Skip-specific
 DAC.skip_args:
-  codebook_dim: 8
+  codebook_dim: 32
   n_codebooks: 4
   encoder_rates: [3]
   decoder_rates: [3]
@@ -53,7 +53,7 @@ lambdas:
   adv/gen_loss: 1.0
   vq/commitment_loss: 0.25
   vq/codebook_loss: 1.0
-  vq/entropy_loss: 7.0
+  vq/entropy_loss: 20.0
 
 VolumeNorm.db: [const, -16]
 
@@ -80,7 +80,7 @@ MelSpectrogramLoss.mag_weight: 0.0
 
 # Data
 batch_size: 8
-train/AudioDataset.duration: 0.38
+train/AudioDataset.duration: 2.0
 train/AudioDataset.n_examples: 10000000
 
 val/AudioDataset.duration: 0.38

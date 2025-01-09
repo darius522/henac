@@ -14,7 +14,7 @@ DAC.quantizer_dropout: 0.5
 
 # Skip-specific
 DAC.skip_args:
-  codebook_dim: 8
+  codebook_dim: 32
   n_codebooks: 4
   encoder_rates: [3]
   decoder_rates: [3]
@@ -80,7 +80,7 @@ MelSpectrogramLoss.mag_weight: 0.0
 
 # Data
 batch_size: 8
-train/AudioDataset.duration: 0.38
+train/AudioDataset.duration: 2.0
 train/AudioDataset.n_examples: 10000000
 
 val/AudioDataset.duration: 0.38

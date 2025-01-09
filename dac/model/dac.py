@@ -128,7 +128,7 @@ class MergerDecoderBlock(nn.Module):
         
     def forward(self, x_skip, x_blind):
         mn = min(x_skip.shape[-1], x_blind.shape[-1])
-        return self.blind(x_blind[..., :mn]) + self.skip(x_skip[..., :mn])
+        return self.blind(x_blind[..., :mn]) * 0 + self.skip(x_skip[..., :mn])
         
 
 class DecoderBlock(nn.Module):

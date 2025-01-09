@@ -1,5 +1,30 @@
 import torch
 
+def empirical_entropy_loss(codebook_indices, codebook_size):
+    """
+    Compute entropy loss based on empirical probability distribution of codebook indices.
+
+    Args:
+        codebook_indices: Tensor of shape (B, CB, T) containing quantized indices.
+        codebook_size: Integer, the total number of possible codebook entries (e.g., 1024).
+    
+    Returns:
+        Scalar tensor representing the entropy loss.
+    """
+    # Flatten across batch, codebooks, and time
+    flattened_indices = codebook_indices.flatten()  # Shape: [B * CB * T]
+
+    # Compute histogram (count occurrences of each codebook index)
+    counts = torch.bincount(flattened_indices, minlength=codebook_size).float()
+
+    # Convert counts to probabilities
+    probs = counts / counts.sum()  # Shape: [codebook_size]
+
+    # Compute entropy: H = -sum(p * log p), ensuring numerical stability with +1e-8
+    entropy = -torch.sum(probs * torch.log(probs + 1e-8))
+
+    return entropy
+
 def normalize_to_match_peak_batched(signal_quieter, signal_louder):
     """
     Normalize quieter signals to match the peak amplitude of louder signals in a batched input.
