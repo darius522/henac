@@ -19,12 +19,20 @@ from utils.audio_utils import normalize_to_match_peak_batched
 
 import julius
 
+from matplotlib import pyplot as plt
 
-def indices_to_entropy(indices, time_axis=1, eps=1e-20, size=1024) -> torch.Tensor:
-    n_step = indices.shape[time_axis]
-    oh_indices  = torch.nn.functional.one_hot(indices, num_classes=size)
-    p = (torch.sum(oh_indices, dim=time_axis) + eps) / n_step
-    return -torch.sum(torch.mul(p, torch.log(p)), axis=-1) * n_step
+
+def compute_entropy(tensor):
+    B, I = tensor.shape
+    entropies = torch.zeros(B, device=tensor.device)
+
+    for b in range(B):
+        unique_vals, counts = torch.unique(tensor[b], return_counts=True)  # Get unique values and their counts
+        probs = counts.float() / I  # Compute probabilities
+        entropy = -torch.sum(probs * torch.log2(probs + 1e-9))  # Compute entropy (adding small value for stability)
+        entropies[b] = entropy
+
+    return entropies  # Shape: [B]
 
 
 def main(args):
@@ -52,9 +60,7 @@ def main(args):
         out = model.forward(signal.audio_data, n_quantizers=None)
         y, codes = out['audio'], out['codes']
         #bands = resampler(signal.audio_data)
-        entropies.append(indices_to_entropy(
-            codes.permute(0, 2, 1), time_axis=1, size=1024
-        ).detach().cpu().numpy())
+        entropies.append(compute_entropy(codes.squeeze(0)).detach().cpu().numpy())
         
         y_band, signal_band = resampler(y)[1:].sum(0), -resampler(signal.audio_data)[1:].sum(0)
         y_band = normalize_to_match_peak_batched(y_band, signal_band)
@@ -103,13 +109,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs/midband_dim_32_ec_20/100k/dac/weights.pth",
+        default="/N/slate/daripete/jstsp-dac/runs/midband_decfrozen_nodiff/latest/dac/weights.pth",
         required=False,
     )
     parser.add_argument(
         "--output-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs/midband_dim_32_ec_20/100k/audios",
+        default="/N/slate/daripete/jstsp-dac/runs/midband_decfrozen_nodiff/latest/audios",
         required=False,
     )
     args = parser.parse_args()

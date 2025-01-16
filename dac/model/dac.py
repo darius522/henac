@@ -39,7 +39,7 @@ class ResidualUnit(nn.Module):
         pad = (x.shape[-1] - y.shape[-1]) // 2
         if pad > 0:
             x = x[..., pad:-pad]
-        
+
         #residual_plots(x, y, 0)
         return x + y
 
@@ -128,7 +128,7 @@ class MergerDecoderBlock(nn.Module):
         
     def forward(self, x_skip, x_blind):
         mn = min(x_skip.shape[-1], x_blind.shape[-1])
-        return self.blind(x_blind[..., :mn]) * 0 + self.skip(x_skip[..., :mn])
+        return self.blind(x_blind[..., :mn]) + self.skip(x_skip[..., :mn])
         
 
 class DecoderBlock(nn.Module):
@@ -246,6 +246,7 @@ class DAC(BaseModel, CodecMixin):
             codebook_size=codebook_size,
             codebook_dim=codebook_dim,
             quantizer_dropout=quantizer_dropout,
+            gumbel_softmax=False
         )
         from copy import deepcopy
         self.skip_aes = nn.ModuleList([])
@@ -294,6 +295,7 @@ class DAC(BaseModel, CodecMixin):
         self,
         audio_data: torch.Tensor,
         n_quantizers: int = None,
+        step: int = None,
     ):
         """Encode given audio data and return quantized latent codes
 
@@ -325,17 +327,17 @@ class DAC(BaseModel, CodecMixin):
                 Number of samples in input audio
         """
         z_main, skip_feat = self.encoder(audio_data)
-        z_main, _, _, _, _ = self.quantizer(z_main, n_quantizers)
-        skip_out = self.skip_aes[0](skip_feat[1], n_quantizers=n_quantizers)
-        x_skip, codes, latents, commitment_loss, codebook_loss = (
+        z_main, _, _, _, _, _ = self.quantizer(z_main, n_quantizers, step=step)
+        skip_out = self.skip_aes[0](skip_feat[1], n_quantizers=n_quantizers, step=step)
+        x_skip, codes, latents, commitment_loss, codebook_loss, entropy_loss = (
             skip_out["audio"],
             skip_out["codes"],
             skip_out["latents"],
             skip_out["vq/commitment_loss"],
             skip_out["vq/codebook_loss"],
-            #skip_out["vq/bitrate_loss"],
+            skip_out["vq/entropy_loss"],
         )
-        return z_main, x_skip, codes, latents, commitment_loss, codebook_loss
+        return z_main, x_skip, codes, latents, commitment_loss, codebook_loss, entropy_loss
 
     def decode(self, z: torch.Tensor, blind_level: int | None = None):
         """Decode given latent codes and return audio data
@@ -371,6 +373,7 @@ class DAC(BaseModel, CodecMixin):
         audio_data: torch.Tensor,
         sample_rate: int = None,
         n_quantizers: int = None,
+        step: int = None,
     ):
         """Model forward pass
 
@@ -408,8 +411,8 @@ class DAC(BaseModel, CodecMixin):
         """
         length = audio_data.shape[-1]
         audio_data = self.preprocess(audio_data, sample_rate)
-        z_main, x_skip, codes, latents, commitment_loss, codebook_loss = self.encode(
-            audio_data, n_quantizers
+        z_main, x_skip, codes, latents, commitment_loss, codebook_loss, entropy_loss = self.encode(
+            audio_data, n_quantizers, step=step
         )
 
         x_blind = self.decode(z_main, blind_level=0)
@@ -421,7 +424,7 @@ class DAC(BaseModel, CodecMixin):
             "latents": latents,
             "vq/commitment_loss": commitment_loss,
             "vq/codebook_loss": codebook_loss,
-            #"vq/bitrate_loss": bitrate_loss,
+            "vq/entropy_loss": entropy_loss,
         }
 
 

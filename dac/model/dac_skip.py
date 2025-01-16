@@ -88,6 +88,10 @@ class DACSkip(nn.Module):
         codebook_dim: Union[int, list] = 32,
         quantizer_dropout: float = 0.0,
         sample_rate: int = 24000,
+        tau_decay: float = 5e-4,
+        tau_max: float = 1.0,
+        gumbel_softmax: bool = False,
+        diff_entropy: bool = False,
     ):
         super().__init__()
 
@@ -111,6 +115,11 @@ class DACSkip(nn.Module):
             codebook_size=codebook_size,
             codebook_dim=codebook_dim,
             quantizer_dropout=quantizer_dropout,
+            tau_decay=tau_decay,
+            tau_max=tau_max,
+            tau_min=0.1,
+            gumbel_softmax=gumbel_softmax,
+            diff_entropy=diff_entropy,
         )
 
         self.decoder = DecoderSkip(
@@ -125,6 +134,7 @@ class DACSkip(nn.Module):
         self,
         audio_data: torch.Tensor,
         n_quantizers: int = None,
+        step: int = None,
     ):
         """Encode given audio data and return quantized latent codes
 
@@ -156,8 +166,8 @@ class DACSkip(nn.Module):
                 Number of samples in input audio
         """
         z = self.encoder(audio_data)
-        z, codes, latents, commitment_loss, codebook_loss = self.quantizer(z, n_quantizers)
-        return z, codes, latents, commitment_loss, codebook_loss
+        z, codes, latents, commitment_loss, codebook_loss, entropy_loss = self.quantizer(z, n_quantizers, step)
+        return z, codes, latents, commitment_loss, codebook_loss, entropy_loss
 
     def decode(self, z: torch.Tensor):
         """Decode given latent codes and return audio data
@@ -183,6 +193,7 @@ class DACSkip(nn.Module):
         audio_data: torch.Tensor,
         sample_rate: int = None,
         n_quantizers: int = None,
+        step: int = None,
     ):
         """Model forward pass
 
@@ -219,8 +230,8 @@ class DACSkip(nn.Module):
                 Decoded audio data.
         """
         length = audio_data.shape[-1]
-        z, codes, latents, commitment_loss, codebook_loss = self.encode(
-            audio_data, n_quantizers
+        z, codes, latents, commitment_loss, codebook_loss, entropy_loss = self.encode(
+            audio_data, n_quantizers, step=step
         )
         x = self.decode(z)
         return {
@@ -230,5 +241,5 @@ class DACSkip(nn.Module):
             "latents": latents,
             "vq/commitment_loss": commitment_loss,
             "vq/codebook_loss": codebook_loss,
-            #"vq/bitrate_loss": bitrate_loss,
+            "vq/entropy_loss": entropy_loss,
         }

@@ -14,11 +14,13 @@ DAC.quantizer_dropout: 0.5
 
 # Skip-specific
 DAC.skip_args:
-  codebook_dim: 8
+  codebook_dim: 32
   n_codebooks: 4
   encoder_rates: [3]
   decoder_rates: [3]
   quantizer_dropout: 0.0
+  gumbel_softmax: false
+  diff_entropy: true
 
 # Discriminator
 Discriminator.sample_rate: 24000
@@ -42,7 +44,7 @@ amp: false
 val_batch_size: 1
 device: cuda
 num_iters: 400000
-save_iters: [10000, 50000, 100000, 200000, 300000, 400000]
+save_iters: [10, 50000, 100000, 200000, 300000, 400000]
 valid_freq: 1000
 sample_freq: 10000
 num_workers: 10
@@ -53,7 +55,7 @@ lambdas:
   adv/gen_loss: 1.0
   vq/commitment_loss: 0.25
   vq/codebook_loss: 1.0
-  vq/entropy_loss: 12.0
+  vq/entropy_loss: 0.0
 
 VolumeNorm.db: [const, -16]
 
@@ -80,7 +82,7 @@ MelSpectrogramLoss.mag_weight: 0.0
 
 # Data
 batch_size: 8
-train/AudioDataset.duration: 2.0
+train/AudioDataset.duration: 0.38
 train/AudioDataset.n_examples: 10000000
 
 val/AudioDataset.duration: 0.38

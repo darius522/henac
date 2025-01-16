@@ -1,5 +1,5 @@
 import os
-import sys
+import sys, shutil
 sys.path.append(os.getcwd())
 import warnings
 from dataclasses import dataclass
@@ -145,8 +145,8 @@ def load(
         state_dict = torch.load(os.path.join(resume, "dac/weights.pth"), weights_only=True)["state_dict"]
         state_dict = {k: v for k, v in state_dict.items() if not "skip_aes" in k}
         generator.load_state_dict(state_dict, strict=False,)
-        trainable_params = ["skip_aes.0", "multidecoders.0"]
-        discardable_params = ["multidecoders.0.model.0.t_conv.blind."]  # params part of the first layer of the decoder for blind_us
+        trainable_params = ["skip_aes.0", "multidecoders.0.model.0.t_conv.skip."] #"multidecoders.0"]
+        discardable_params = []#["multidecoders.0.model.0.t_conv.blind."]  # params part of the first layer of the decoder for blind_us
 
         for name, param in generator.named_parameters():
             if any([p in name for p in trainable_params]) and not any([p in name for p in discardable_params]):
@@ -247,14 +247,14 @@ def train_loop(state, batch, accel, lambdas, save_path):
 
     
     with accel.autocast():
-        out = state.generator(signal.audio_data, signal.sample_rate)
+        out = state.generator(signal.audio_data, signal.sample_rate, step=state.tracker.step)
         band = state.resampler(signal.audio_data.clone())[1:].sum(0)
         band_n = normalize_to_match_peak_batched(band, signal.audio_data)
         signal = AudioSignal(band_n, signal.sample_rate)
         recons = AudioSignal(out["audio"], signal.sample_rate)
         commitment_loss = out["vq/commitment_loss"]
         codebook_loss = out["vq/codebook_loss"]
-        codes = out["codes"]
+        entropy_loss = out["vq/entropy_loss"]
 
     with accel.autocast():
         output["adv/disc_loss"] = state.gan_loss.discriminator_loss(recons, signal)
@@ -278,7 +278,7 @@ def train_loop(state, batch, accel, lambdas, save_path):
         ) = state.gan_loss.generator_loss(recons, signal)
         output["vq/commitment_loss"] = commitment_loss
         output["vq/codebook_loss"] = codebook_loss
-        output["vq/entropy_loss"] = empirical_entropy_loss(codes, 1024)
+        output["vq/entropy_loss"] = entropy_loss
         output["loss"] = sum([v * output[k] for k, v in lambdas.items() if k in output])
 
     state.optimizer_g.zero_grad()
@@ -293,6 +293,10 @@ def train_loop(state, batch, accel, lambdas, save_path):
 
     output["other/learning_rate"] = state.optimizer_g.param_groups[0]["lr"]
     output["other/batch_size"] = signal.batch_size * accel.world_size
+    
+    for i, q in enumerate(state.generator.module.skip_aes[0].quantizer.quantizers):
+        output[f"other/quant_tau_{i}"] = q.tau
+        output[f"other/quant_tau_decay_{i}"] = q.tau_decay
 
     return {k: v for k, v in sorted(output.items())}
 
@@ -387,11 +391,12 @@ def train(
         "adv/gen_loss": 1.0,
         "vq/commitment_loss": 0.25,
         "vq/codebook_loss": 1.0,
-        "vq/bitrate_loss": 1.0,
+        "vq/entropy_loss": 1.0,
     },
 ):
     util.seed(seed)
     Path(save_path).mkdir(exist_ok=True, parents=True)
+    shutil.copy(args['args.load'], save_path+'/conf.yaml')
     writer = (
         SummaryWriter(log_dir=f"{save_path}/logs") if accel.local_rank == 0 else None
     )

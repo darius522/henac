@@ -1,5 +1,6 @@
 from typing import Union
 
+import math
 import numpy as np
 import torch
 import torch.nn as nn
@@ -22,7 +23,7 @@ class VectorQuantize(nn.Module):
             improves training stability
     """
 
-    def __init__(self, input_dim: int, codebook_size: int, codebook_dim: int):
+    def __init__(self, input_dim: int, codebook_size: int, codebook_dim: int, gumbel_softmax: bool = True, tau_max=1.0, tau_min=0.1, tau_decay=5e-4):
         super().__init__()
         self.codebook_size = codebook_size
         self.codebook_dim = codebook_dim
@@ -30,44 +31,76 @@ class VectorQuantize(nn.Module):
         self.in_proj = WNConv1d(input_dim, codebook_dim, kernel_size=1)
         self.out_proj = WNConv1d(codebook_dim, input_dim, kernel_size=1)
         self.codebook = nn.Embedding(codebook_size, codebook_dim)
+        
+        self.gumbel_softmax = gumbel_softmax
+        self.tau_max = tau_max
+        self.tau_min = tau_min
+        self.tau_decay = tau_decay  # Decay rate for annealing
+        self.register_buffer("tau", torch.tensor(tau_max))  # Initial temperature
 
-    def forward(self, z):
-        """Quantized the input tensor using a fixed codebook and returns
-        the corresponding codebook vectors
+    def forward(self, z, step):
+        """Quantize the input tensor using a fixed codebook with Gumbel-Softmax relaxation."""
+        if step:
+            self.anneal_temperature(step)  # Update tau
+        z_e = self.in_proj(z)  # (B x D x T)
+        z_q, indices, entropy_loss = self.decode_latents(z_e)
 
-        Parameters
-        ----------
-        z : Tensor[B x D x T]
-
-        Returns
-        -------
-        Tensor[B x D x T]
-            Quantized continuous representation of input
-        Tensor[1]
-            Commitment loss to train encoder to predict vectors closer to codebook
-            entries
-        Tensor[1]
-            Codebook loss to update the codebook
-        Tensor[B x T]
-            Codebook indices (quantized discrete representation of input)
-        Tensor[B x D x T]
-            Projected latents (continuous representation of input before quantization)
-        """
-
-        # Factorized codes (ViT-VQGAN) Project input into low-dimensional space
-        z_e = self.in_proj(z)  # z_e : (B x D x T)
-        z_q, indices = self.decode_latents(z_e)
-
+        # Compute losses
         commitment_loss = F.mse_loss(z_e, z_q.detach(), reduction="none").mean([1, 2])
         codebook_loss = F.mse_loss(z_q, z_e.detach(), reduction="none").mean([1, 2])
 
-        z_q = (
-            z_e + (z_q - z_e).detach()
-        )  # noop in forward pass, straight-through gradient estimator in backward pass
+        # Use Gumbel-Softmax trick instead of STE
+        if self.gumbel_softmax:
+            z_q = z_e + (z_q - z_e)  # No gradient detachment (fully differentiable)
+        else:
+            z_q = z_e + (z_q - z_e).detach()  # Straight-through estimator (original method)
 
         z_q = self.out_proj(z_q)
+        return z_q, commitment_loss, codebook_loss, indices, z_e, entropy_loss
 
-        return z_q, commitment_loss, codebook_loss, indices, z_e
+    def decode_latents(self, latents):
+        """Gumbel-Softmax based relaxed quantization instead of argmax selection."""
+        encodings = rearrange(latents, "b d t -> (b t) d")
+        codebook = self.codebook.weight  # (N x D)
+
+        # L2 normalize encodings and codebook (optional for better quantization)
+        encodings = F.normalize(encodings)
+        codebook = F.normalize(codebook)
+
+        # Compute distances
+        dist = (
+            encodings.pow(2).sum(1, keepdim=True)
+            - 2 * encodings @ codebook.t()
+            + codebook.pow(2).sum(1, keepdim=True).t()
+        )
+
+        if self.gumbel_softmax and self.training:
+            # Gumbel-Softmax: Convert distances into a probability distribution
+            logits = -dist  # Flip sign since lower distance = higher probability
+            gumbel_noise = torch.rand_like(logits).log().neg().log().neg()  # Sample Gumbel noise
+            soft_assignments = F.softmax((logits + gumbel_noise) / self.tau, dim=-1)  # Apply temperature
+
+            # Compute weighted sum of codebook vectors
+            z_q = soft_assignments @ codebook  # (B*T x D)
+            indices = soft_assignments.argmax(dim=-1)  # Get discrete indices (for logging)
+            
+            # Compute entropy loss
+            entropy_loss = -(soft_assignments * soft_assignments.clamp(min=1e-9).log()).sum(dim=-1).mean()
+        else:
+            # print('Warning: Either not using Gumbel-Softmax or not in training mode, using hard quantization!')
+            # Hard argmax selection (standard VQ)
+            indices = (-dist).max(1)[1]  # Get closest codebook entry
+            z_q = self.embed_code(indices)
+
+            # Empirical entropy (for hard quantization, only used for monitoring)
+            counts = torch.bincount(indices.view(-1), minlength=self.codebook_size).float()
+            probs = counts / counts.sum()
+            entropy_loss = -(probs * probs.clamp(min=1e-9).log()).sum()
+
+        z_q = rearrange(z_q, "(b t) d -> b d t", b=latents.size(0))
+        indices = rearrange(indices, "(b t) -> b t", b=latents.size(0))
+
+        return z_q, indices, entropy_loss
 
     def embed_code(self, embed_id):
         return F.embedding(embed_id, self.codebook.weight)
@@ -75,23 +108,10 @@ class VectorQuantize(nn.Module):
     def decode_code(self, embed_id):
         return self.embed_code(embed_id).transpose(1, 2)
 
-    def decode_latents(self, latents):
-        encodings = rearrange(latents, "b d t -> (b t) d")
-        codebook = self.codebook.weight  # codebook: (N x D)
-
-        # L2 normalize encodings and codebook (ViT-VQGAN)
-        encodings = F.normalize(encodings)
-        codebook = F.normalize(codebook)
-
-        # Compute euclidean distance with codebook
-        dist = (
-            encodings.pow(2).sum(1, keepdim=True)
-            - 2 * encodings @ codebook.t()
-            + codebook.pow(2).sum(1, keepdim=True).t()
-        )
-        indices = rearrange((-dist).max(1)[1], "(b t) -> b t", b=latents.size(0))
-        z_q = self.decode_code(indices)
-        return z_q, indices
+    def anneal_temperature(self, step):
+        """Update tau using exponential decay."""
+        new_tau = self.tau_min + (self.tau_max - self.tau_min) * math.exp(-self.tau_decay * step)
+        self.tau.fill_(new_tau)  # Update tau buffer
 
 
 class ResidualVectorQuantize(nn.Module):
@@ -107,6 +127,11 @@ class ResidualVectorQuantize(nn.Module):
         codebook_size: int = 1024,
         codebook_dim: Union[int, list] = 8,
         quantizer_dropout: float = 0.0,
+        tau_max: float = 1.0,
+        tau_min: float = 1.0, 
+        tau_decay: float = 5e-4,
+        gumbel_softmax: bool = False,
+        diff_entropy: bool = False,
     ):
         super().__init__()
         if isinstance(codebook_dim, int):
@@ -118,13 +143,14 @@ class ResidualVectorQuantize(nn.Module):
 
         self.quantizers = nn.ModuleList(
             [
-                VectorQuantize(input_dim, codebook_size, codebook_dim[i])
+                VectorQuantize(input_dim, codebook_size, codebook_dim[i], gumbel_softmax, tau_max, tau_min, tau_decay)
                 for i in range(n_codebooks)
             ]
         )
         self.quantizer_dropout = quantizer_dropout
+        self.diff_entropy = diff_entropy
 
-    def forward(self, z, n_quantizers: int = None):
+    def forward(self, z, n_quantizers: int = None, step: int = None):
         """Quantized the input tensor using a fixed set of `n` codebooks and returns
         the corresponding codebook vectors
         Parameters
@@ -153,10 +179,14 @@ class ResidualVectorQuantize(nn.Module):
             "vq/codebook_loss" : Tensor[1]
                 Codebook loss to update the codebook
         """
+        if self.diff_entropy:
+            z = torch.diff(z, dim=-1)
+            z = F.pad(z, (0, 1), mode="constant", value=0)
         z_q = 0
         residual = z
         commitment_loss = 0
         codebook_loss = 0
+        entropy_loss = 0
 
         codebook_indices = []
         latents = []
@@ -174,8 +204,8 @@ class ResidualVectorQuantize(nn.Module):
             if self.training is False and i >= n_quantizers:
                 break
 
-            z_q_i, commitment_loss_i, codebook_loss_i, indices_i, z_e_i = quantizer(
-                residual
+            z_q_i, commitment_loss_i, codebook_loss_i, indices_i, z_e_i, entropy_loss_i = quantizer(
+                residual, step=step
             )
 
             # Create mask to apply quantizer dropout
@@ -188,6 +218,7 @@ class ResidualVectorQuantize(nn.Module):
             # Sum losses
             commitment_loss += (commitment_loss_i * mask).mean()
             codebook_loss += (codebook_loss_i * mask).mean()
+            entropy_loss += (entropy_loss_i * mask).mean()
 
             codebook_indices.append(indices_i)
             latents.append(z_e_i)
@@ -195,7 +226,7 @@ class ResidualVectorQuantize(nn.Module):
         codes = torch.stack(codebook_indices, dim=1)
         latents = torch.cat(latents, dim=1)
 
-        return z_q, codes, latents, commitment_loss, codebook_loss
+        return z_q, codes, latents, commitment_loss, codebook_loss, entropy_loss
 
     def from_codes(self, codes: torch.Tensor):
         """Given the quantized codes, reconstruct the continuous representation
