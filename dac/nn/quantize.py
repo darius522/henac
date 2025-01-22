@@ -10,6 +10,8 @@ from torch.nn.utils import weight_norm
 
 from dac.nn.layers import WNConv1d
 
+from plots.plot import residual_plots
+
 
 class VectorQuantize(nn.Module):
     """

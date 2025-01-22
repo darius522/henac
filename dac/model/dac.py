@@ -138,6 +138,7 @@ class DecoderBlock(nn.Module):
         if merger_block:
             self.t_conv = MergerDecoderBlock(input_dim=input_dim, output_dim=output_dim, stride=stride)
         else:
+            Snake1d(input_dim),
             self.t_conv = WNConvTranspose1d(
                 input_dim,
                 output_dim,
@@ -294,7 +295,7 @@ class DAC(BaseModel, CodecMixin):
     def encode(
         self,
         audio_data: torch.Tensor,
-        n_quantizers: int = None,
+        n_quantizers: list = [None, None],
         step: int = None,
     ):
         """Encode given audio data and return quantized latent codes
@@ -327,9 +328,9 @@ class DAC(BaseModel, CodecMixin):
                 Number of samples in input audio
         """
         z_main, skip_feat = self.encoder(audio_data)
-        z_main, _, _, _, _, _ = self.quantizer(z_main, n_quantizers, step=step)
-        skip_out = self.skip_aes[0](skip_feat[1], n_quantizers=n_quantizers, step=step)
-        x_skip, codes, latents, commitment_loss, codebook_loss, entropy_loss = (
+        z_main, core_codes, _, _, _, _ = self.quantizer(z_main, n_quantizers=n_quantizers[0], step=step)
+        skip_out = self.skip_aes[0](skip_feat[1], n_quantizers=n_quantizers[1], step=step)
+        x_skip, mb_codes, latents, commitment_loss, codebook_loss, entropy_loss = (
             skip_out["audio"],
             skip_out["codes"],
             skip_out["latents"],
@@ -337,7 +338,7 @@ class DAC(BaseModel, CodecMixin):
             skip_out["vq/codebook_loss"],
             skip_out["vq/entropy_loss"],
         )
-        return z_main, x_skip, codes, latents, commitment_loss, codebook_loss, entropy_loss
+        return z_main, x_skip, core_codes, mb_codes, latents, commitment_loss, codebook_loss, entropy_loss
 
     def decode(self, z: torch.Tensor, blind_level: int | None = None):
         """Decode given latent codes and return audio data
@@ -372,7 +373,7 @@ class DAC(BaseModel, CodecMixin):
         self,
         audio_data: torch.Tensor,
         sample_rate: int = None,
-        n_quantizers: int = None,
+        n_quantizers: list = [None, None],
         step: int = None,
     ):
         """Model forward pass
@@ -411,7 +412,7 @@ class DAC(BaseModel, CodecMixin):
         """
         length = audio_data.shape[-1]
         audio_data = self.preprocess(audio_data, sample_rate)
-        z_main, x_skip, codes, latents, commitment_loss, codebook_loss, entropy_loss = self.encode(
+        z_main, x_skip, core_codes, mb_codes, latents, commitment_loss, codebook_loss, entropy_loss = self.encode(
             audio_data, n_quantizers, step=step
         )
 
@@ -420,11 +421,12 @@ class DAC(BaseModel, CodecMixin):
         return {
             "audio": x_blind[..., :length],
             "z": z_main,
-            "codes": codes,
+            "codes": mb_codes,
             "latents": latents,
             "vq/commitment_loss": commitment_loss,
             "vq/codebook_loss": codebook_loss,
             "vq/entropy_loss": entropy_loss,
+            "core_codes": core_codes,
         }
 
 

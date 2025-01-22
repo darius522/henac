@@ -14,7 +14,7 @@ DAC.quantizer_dropout: 0.5
 
 # Skip-specific
 DAC.skip_args:
-  codebook_dim: 8
+  codebook_dim: 256
   n_codebooks: 1
   encoder_rates: [3]
   decoder_rates: [3]

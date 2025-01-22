@@ -20,7 +20,7 @@ DAC.skip_args:
   decoder_rates: [3]
   quantizer_dropout: 0.0
   gumbel_softmax: false
-  diff_entropy: false
+  diff_entropy: true
 
 resume_ckpt: '/N/slate/daripete/jstsp-dac/runs/baseline/200k/'
 decoder_frozen: false

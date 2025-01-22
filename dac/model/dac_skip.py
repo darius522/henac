@@ -83,15 +83,15 @@ class DACSkip(nn.Module):
         latent_dim: int = 256,
         decoder_dim: int = 1024,
         decoder_rates: List[int] = [3],
-        n_codebooks: int = 4,
+        n_codebooks: int = 1,
         codebook_size: int = 1024,
-        codebook_dim: Union[int, list] = 32,
+        codebook_dim: Union[int, list] = 8,
         quantizer_dropout: float = 0.0,
         sample_rate: int = 24000,
         tau_decay: float = 5e-4,
         tau_max: float = 1.0,
         gumbel_softmax: bool = False,
-        diff_entropy: bool = False,
+        diff_entropy: bool = True,
     ):
         super().__init__()
 

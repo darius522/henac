@@ -145,8 +145,15 @@ def load(
         state_dict = torch.load(os.path.join(resume, "dac/weights.pth"), weights_only=True)["state_dict"]
         state_dict = {k: v for k, v in state_dict.items() if not "skip_aes" in k}
         generator.load_state_dict(state_dict, strict=False,)
-        trainable_params = ["skip_aes.0", "multidecoders.0.model.0.t_conv.skip."] #"multidecoders.0"]
-        discardable_params = []#["multidecoders.0.model.0.t_conv.blind."]  # params part of the first layer of the decoder for blind_us
+
+        if args['decoder_frozen']:
+            trainable_params = ["skip_aes.0", "multidecoders.0.model.0.t_conv.skip."]
+            discardable_params = []
+            print('Warning: Decoder frozen')
+        else:
+            trainable_params = ["skip_aes.0", "multidecoders.0"]
+            discardable_params = ["multidecoders.0.model.0.t_conv.blind."]  # params part of the first layer of the decoder for blind_us
+            print('Warning: Decoder trainable')
 
         for name, param in generator.named_parameters():
             if any([p in name for p in trainable_params]) and not any([p in name for p in discardable_params]):
@@ -221,7 +228,7 @@ def val_loop(batch, state, accel):
     )
 
     out = state.generator(signal.audio_data, signal.sample_rate)
-    band = state.resampler(signal.audio_data.clone())[1:].sum(0)
+    band = state.resampler(signal.audio_data.clone())[0:].sum(0)
     band_n = normalize_to_match_peak_batched(band, signal.audio_data)
     signal = AudioSignal(band_n, signal.sample_rate)
     recons = AudioSignal(out["audio"], signal.sample_rate)
@@ -248,7 +255,7 @@ def train_loop(state, batch, accel, lambdas, save_path):
     
     with accel.autocast():
         out = state.generator(signal.audio_data, signal.sample_rate, step=state.tracker.step)
-        band = state.resampler(signal.audio_data.clone())[1:].sum(0)
+        band = state.resampler(signal.audio_data.clone())[0:].sum(0)
         band_n = normalize_to_match_peak_batched(band, signal.audio_data)
         signal = AudioSignal(band_n, signal.sample_rate)
         recons = AudioSignal(out["audio"], signal.sample_rate)
@@ -345,7 +352,7 @@ def save_samples(state, val_idx, writer):
     )
 
     out = state.generator(signal.audio_data, signal.sample_rate)
-    band = state.resampler(signal.audio_data.clone())[1:].sum(0)
+    band = state.resampler(signal.audio_data.clone())[0:].sum(0)
     band_n = normalize_to_match_peak_batched(band, signal.audio_data)
     signal = AudioSignal(band_n, signal.sample_rate)
     recons = AudioSignal(out["audio"], signal.sample_rate)
