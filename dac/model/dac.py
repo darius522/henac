@@ -127,8 +127,8 @@ class MergerDecoderBlock(nn.Module):
         ))
         
     def forward(self, x_skip, x_blind):
-        mn = min(x_skip.shape[-1], x_blind.shape[-1])
-        return self.blind(x_blind[..., :mn]) + self.skip(x_skip[..., :mn])
+        #mn = min(x_skip.shape[-1], x_blind.shape[-1])
+        return self.blind(x_blind)# + self.skip(x_skip[..., :mn])
         
 
 class DecoderBlock(nn.Module):
@@ -328,17 +328,17 @@ class DAC(BaseModel, CodecMixin):
                 Number of samples in input audio
         """
         z_main, skip_feat = self.encoder(audio_data)
-        z_main, core_codes, _, _, _, _ = self.quantizer(z_main, n_quantizers=n_quantizers[0], step=step)
-        skip_out = self.skip_aes[0](skip_feat[1], n_quantizers=n_quantizers[1], step=step)
-        x_skip, mb_codes, latents, commitment_loss, codebook_loss, entropy_loss = (
-            skip_out["audio"],
-            skip_out["codes"],
-            skip_out["latents"],
-            skip_out["vq/commitment_loss"],
-            skip_out["vq/codebook_loss"],
-            skip_out["vq/entropy_loss"],
-        )
-        return z_main, x_skip, core_codes, mb_codes, latents, commitment_loss, codebook_loss, entropy_loss
+        z_q, codes, latents, commitment_loss, codebook_loss, entropy_loss = self.quantizer(z_main, n_quantizers=n_quantizers[0], step=step)
+        # skip_out = self.skip_aes[0](skip_feat[1], n_quantizers=n_quantizers[1], step=step)
+        # x_skip, mb_codes, latents, commitment_loss, codebook_loss, entropy_loss = (
+        #     skip_out["audio"],
+        #     skip_out["codes"],
+        #     skip_out["latents"],
+        #     skip_out["vq/commitment_loss"],
+        #     skip_out["vq/codebook_loss"],
+        #     skip_out["vq/entropy_loss"],
+        # )
+        return z_q, codes, latents, commitment_loss, codebook_loss, entropy_loss
 
     def decode(self, z: torch.Tensor, blind_level: int | None = None):
         """Decode given latent codes and return audio data
@@ -412,21 +412,20 @@ class DAC(BaseModel, CodecMixin):
         """
         length = audio_data.shape[-1]
         audio_data = self.preprocess(audio_data, sample_rate)
-        z_main, x_skip, core_codes, mb_codes, latents, commitment_loss, codebook_loss, entropy_loss = self.encode(
+        z_q, codes, latents, commitment_loss, codebook_loss, entropy_loss = self.encode(
             audio_data, n_quantizers, step=step
         )
 
-        x_blind = self.decode(z_main, blind_level=0)
-        x_blind = self.multidecoders[0](x_skip, blind_level=None, x_blind=x_blind)
+        x_blind = self.decode(z_q, blind_level=0)
+        x_blind = self.multidecoders[0](None, blind_level=None, x_blind=x_blind)
         return {
             "audio": x_blind[..., :length],
-            "z": z_main,
-            "codes": mb_codes,
+            "z": z_q,
+            "codes": codes,
             "latents": latents,
             "vq/commitment_loss": commitment_loss,
             "vq/codebook_loss": codebook_loss,
             "vq/entropy_loss": entropy_loss,
-            "core_codes": core_codes,
         }
 
 

@@ -15,9 +15,15 @@ DAC.quantizer_dropout: 0.5
 # Skip-specific
 DAC.skip_args:
   codebook_dim: 8
-  n_codebooks: 4
+  n_codebooks: 1
   encoder_rates: [3]
   decoder_rates: [3]
+  quantizer_dropout: 0.0
+  gumbel_softmax: false
+  diff_entropy: false
+
+resume_ckpt: "" #'/N/slate/daripete/jstsp-dac/runs/baseline/200k/'
+decoder_frozen: false
 
 # Discriminator
 Discriminator.sample_rate: 24000
@@ -36,7 +42,6 @@ AdamW.betas: [0.8, 0.99]
 AdamW.lr: 0.0001
 ExponentialLR.gamma: 0.999996
 
-resume_ckpt: '' #'/N/slate/daripete/jstsp-dac/runs/sanity_base_2_2_4_20/140k'
 amp: false
 val_batch_size: 1
 device: cuda
@@ -52,7 +57,7 @@ lambdas:
   adv/gen_loss: 1.0
   vq/commitment_loss: 0.25
   vq/codebook_loss: 1.0
-  vq/bitrate_loss: 0.0
+  vq/entropy_loss: 0.0
 
 VolumeNorm.db: [const, -16]
 

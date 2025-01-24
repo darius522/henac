@@ -91,7 +91,7 @@ class DACSkip(nn.Module):
         tau_decay: float = 5e-4,
         tau_max: float = 1.0,
         gumbel_softmax: bool = False,
-        diff_entropy: bool = True,
+        diff_entropy: bool = False,
     ):
         super().__init__()
 

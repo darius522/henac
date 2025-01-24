@@ -229,8 +229,8 @@ def val_loop(batch, state, accel):
 
     out = state.generator(signal.audio_data, signal.sample_rate)
     band = state.resampler(signal.audio_data.clone())[0:].sum(0)
-    band_n = normalize_to_match_peak_batched(band, signal.audio_data)
-    signal = AudioSignal(band_n, signal.sample_rate)
+    #band_n = normalize_to_match_peak_batched(band, signal.audio_data)
+    signal = AudioSignal(band, signal.sample_rate)
     recons = AudioSignal(out["audio"], signal.sample_rate)
 
     return {
@@ -256,8 +256,8 @@ def train_loop(state, batch, accel, lambdas, save_path):
     with accel.autocast():
         out = state.generator(signal.audio_data, signal.sample_rate, step=state.tracker.step)
         band = state.resampler(signal.audio_data.clone())[0:].sum(0)
-        band_n = normalize_to_match_peak_batched(band, signal.audio_data)
-        signal = AudioSignal(band_n, signal.sample_rate)
+        #band_n = normalize_to_match_peak_batched(band, signal.audio_data)
+        signal = AudioSignal(band, signal.sample_rate)
         recons = AudioSignal(out["audio"], signal.sample_rate)
         commitment_loss = out["vq/commitment_loss"]
         codebook_loss = out["vq/codebook_loss"]
@@ -353,8 +353,8 @@ def save_samples(state, val_idx, writer):
 
     out = state.generator(signal.audio_data, signal.sample_rate)
     band = state.resampler(signal.audio_data.clone())[0:].sum(0)
-    band_n = normalize_to_match_peak_batched(band, signal.audio_data)
-    signal = AudioSignal(band_n, signal.sample_rate)
+    #band_n = normalize_to_match_peak_batched(band, signal.audio_data)
+    signal = AudioSignal(band, signal.sample_rate)
     recons = AudioSignal(out["audio"], signal.sample_rate)
 
     audio_dict = {"recons": recons}
