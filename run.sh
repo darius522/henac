@@ -22,4 +22,4 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun \
                     --nproc_per_node gpu scripts/train.py \
                     --args.load conf/final/24khz_baseline.yml \
                     --seed 1 \
-                    --save_path runs/baseline2
+                    --save_path runs/baseline3
