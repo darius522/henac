@@ -20,6 +20,7 @@ from utils.audio_utils import normalize_to_match_peak_batched
 import julius
 
 from matplotlib import pyplot as plt
+import pyloudnorm as pyln
 
 
 def compute_entropy(code_tensor, N=1024, M=4, frame_rate=500):
@@ -73,65 +74,58 @@ def main(args):
     
     resampler = julius.SplitBands(24_000, cutoffs=[3000, 6000]).to('cuda')
     duration = 5.0
-    num_codebook = [32, 1]
+    num_codebook = [24, 2]
     for i, row in tqdm(dataset.iterrows(), total=len(dataset)):
         fname = os.path.basename(row.path).split('.')[0]
         # Load audio signal file
         signal = AudioSignal(row.path, duration=duration)
 
-        # Encode audio signal as one long file
-        # (may run out of GPU memory on long files)
         signal.to(model.device)
 
         out = model.forward(signal.audio_data, n_quantizers=num_codebook)
-        y_band, codes, core_codes = out['audio'], out['codes'], out['core_codes']
-        #bands = resampler(signal.audio_data)
+        y_blind = model.decode(out['z'])
+        y_band, mb_codes, core_codes = out['audio'], out['codes'], out['core_codes']
         entropies['core'].append(compute_entropy(core_codes.squeeze(0).detach().cpu().numpy(), M=num_codebook[0], frame_rate=75))
-        entropies['mb'].append(compute_entropy(codes.squeeze(0).detach().cpu().numpy(), M=num_codebook[1]))
+        entropies['mb'].append(compute_entropy(mb_codes.squeeze(0).detach().cpu().numpy(), M=num_codebook[1]))
         
         signal_band = resampler(signal.audio_data)[1:].sum(0)
-        y_band = normalize_to_match_peak_batched(y_band, signal_band)
+        y_band = y_band.reshape(1, 1, -1).to('cuda')
+        signal_band = signal_band.reshape(1, 1, -1).to('cuda')
         
-        y_bu = model.decode(out['z'])
-        y_core = resampler(y_bu)[0]
-        y = y_band + y_core
+        # also reconstruct the multiband signal
+        mb_rec = (resampler(y_blind)[0] + y_band).to('cpu').detach()
 
-        y, signal = y.to('cpu').detach(), signal.audio_data.to('cpu').detach()
-        y_bu, y_core = y_bu.to('cpu').detach(), y_core.to('cpu').detach()
+        y_blind, signal = y_blind.to('cpu').detach(), signal.audio_data.to('cpu').detach()
         y_band, signal_band = y_band.to('cpu').detach(), signal_band.to('cpu').detach()
-        snrs['full'].append(ScaleInvariantSignalNoiseRatio().to("cpu")(y, signal))
+        snrs['full'].append(ScaleInvariantSignalNoiseRatio().to("cpu")(y_blind, signal))
         snrs['band'].append(ScaleInvariantSignalNoiseRatio().to("cpu")(y_band, signal_band))
         
+        
         sf.write(
-            os.path.join(args.output_path, f"{fname}_input.wav"),
+            os.path.join(args.output_path, f"{fname}_full_input.wav"),
             signal.reshape(-1).numpy(),
             samplerate=24_000,
         )
         sf.write(
-            os.path.join(args.output_path, f"{fname}_mid_input.wav"),
-            signal_band.reshape(-1).numpy(),
+            os.path.join(args.output_path, f"{fname}_full_output.wav"),
+            y_blind.reshape(-1).numpy(),
             samplerate=24_000,
         )
+        # sf.write(
+        #     os.path.join(args.output_path, f"{fname}_band_input.wav"),
+        #     signal_band.reshape(-1).numpy(),
+        #     samplerate=24_000,
+        # )
+        # sf.write(
+        #     os.path.join(args.output_path, f"{fname}_band_output.wav"),
+        #     y_band.reshape(-1).numpy(),
+        #     samplerate=24_000,
+        # )
         sf.write(
-            os.path.join(args.output_path, f"{fname}_mid_output.wav"),
-            y_band.reshape(-1).numpy(),
+            os.path.join(args.output_path, f"{fname}_mb_rec.wav"),
+            mb_rec.reshape(-1).numpy(),
             samplerate=24_000,
         )
-        # sf.write(
-        #     os.path.join(args.output_path, f"{fname}_core_output.wav"),
-        #     y_core.reshape(-1).numpy(),
-        #     samplerate=24_000,
-        # )
-        # sf.write(
-        #     os.path.join(args.output_path, f"{fname}_full_output.wav"),
-        #     y.reshape(-1).numpy(),
-        #     samplerate=24_000,
-        # )
-        # sf.write(
-        #     os.path.join(args.output_path, f"{fname}_full_bu_output.wav"),
-        #     y_bu.reshape(-1).numpy(),
-        #     samplerate=24_000,
-        # )
         
         del out
     
@@ -155,31 +149,15 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs/midband_cb1_diff/latest/dac/weights.pth",
+        default="/N/slate/daripete/jstsp-dac/runs/midband_cb2_4096_cb24/latest/dac/weights.pth",
         required=False,
     )
     parser.add_argument(
         "--output-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs/midband_cb1_diff/latest/audios",
+        default="/N/slate/daripete/jstsp-dac/runs/midband_cb2_4096_cb24/latest/audios",
         required=False,
     )
     args = parser.parse_args()
 
     main(args)
-    
-# latent_dim = 32
-# Overall Bitrate per CB: [3976.7 4110.9 4189.7 4190. ]
-# Overall SNR for midband: 2.0
-
-# latent_dim = 64
-# Overall Bitrate per CB: [3656.6 3877.5 3967.4 3877.8]
-# Overall SNR for midband: 1.6
-
-# latent_dim = 128
-# Overall Bitrate per CB: [3240.9 3474.6 3558.2 3421. ]
-# Overall SNR for midband: 0.5
-
-# latent_dim = 256
-# Overall Bitrate per CB: [2708.1 3011.7 3232.5 3150.4]
-# Overall SNR for midband: -0.9

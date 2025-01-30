@@ -99,7 +99,7 @@ class Encoder(nn.Module):
                 skips.append(x.clone())
         skips = list(reversed(skips))
         return x, skips
-    
+
 
 class MergerDecoderBlock(nn.Module):
     def __init__(self, input_dim: int = 16, output_dim: int = 8, stride: int = 1):
@@ -129,23 +129,25 @@ class MergerDecoderBlock(nn.Module):
     def forward(self, x_skip, x_blind):
         mn = min(x_skip.shape[-1], x_blind.shape[-1])
         return self.blind(x_blind[..., :mn]) + self.skip(x_skip[..., :mn])
-        
+
 
 class DecoderBlock(nn.Module):
     def __init__(self, input_dim: int = 16, output_dim: int = 8, stride: int = 1, merger_block: bool = False):
         super().__init__()
-        
+
         if merger_block:
             self.t_conv = MergerDecoderBlock(input_dim=input_dim, output_dim=output_dim, stride=stride)
         else:
-            Snake1d(input_dim),
-            self.t_conv = WNConvTranspose1d(
-                input_dim,
-                output_dim,
-                kernel_size=2 * stride,
-                stride=stride,
-                padding=math.ceil(stride / 2),
-                output_padding=(stride % 2) if stride > 1 else 0,
+            self.t_conv = nn.Sequential(
+                Snake1d(input_dim),
+                WNConvTranspose1d(
+                    input_dim,
+                    output_dim,
+                    kernel_size=2 * stride,
+                    stride=stride,
+                    padding=math.ceil(stride / 2),
+                    output_padding=(stride % 2) if stride > 1 else 0,
+                ),
             )
 
         self.block = nn.Sequential(
@@ -212,11 +214,11 @@ class DAC(BaseModel, CodecMixin):
     def __init__(
         self,
         encoder_dim: int = 64,
-        encoder_rates: List[int] = [2, 4, 8, 8],
+        encoder_rates: List[int] = [2, 2, 4, 20],
         latent_dim: int = None,
         decoder_dim: int = 1536,
-        decoder_rates: List[int] = [8, 8, 4, 2],
-        n_codebooks: int = 9,
+        decoder_rates: List[int] = [20, 4, 2, 2],
+        n_codebooks: int = 32,
         codebook_size: int = 1024,
         codebook_dim: Union[int, list] = 8,
         quantizer_dropout: bool = False,
@@ -417,16 +419,16 @@ class DAC(BaseModel, CodecMixin):
         )
 
         x_blind = self.decode(z_main, blind_level=0)
-        x_blind = self.multidecoders[0](x_skip, blind_level=None, x_blind=x_blind)
+        x_band = self.multidecoders[0](x_skip, blind_level=None, x_blind=x_blind)
         return {
-            "audio": x_blind[..., :length],
+            "audio": x_band[..., :length],
             "z": z_main,
             "codes": mb_codes,
+            "core_codes": core_codes,
             "latents": latents,
             "vq/commitment_loss": commitment_loss,
             "vq/codebook_loss": codebook_loss,
             "vq/entropy_loss": entropy_loss,
-            "core_codes": core_codes,
         }
 
 

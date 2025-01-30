@@ -125,6 +125,7 @@ class State:
     tracker: Tracker
     
     resampler: julius.SplitBands
+    scaler: float
 
 
 @argbind.bind(without_prefix=True)
@@ -141,8 +142,8 @@ def load(
     generator = DAC() if generator is None else generator
     discriminator = Discriminator() if discriminator is None else discriminator
     if resume != "":
-        assert os.path.exists(os.path.join(resume, "dac/weights.pth")), "Checkpoint path provided but not found!"
-        state_dict = torch.load(os.path.join(resume, "dac/weights.pth"), weights_only=True)["state_dict"]
+        assert os.path.exists(os.path.join(resume, "dac/weights_resave.pth")), "Checkpoint path provided but not found!"
+        state_dict = torch.load(os.path.join(resume, "dac/weights_resave.pth"), weights_only=True)["state_dict"]
         state_dict = {k: v for k, v in state_dict.items() if not "skip_aes" in k}
         generator.load_state_dict(state_dict, strict=False,)
 
@@ -215,6 +216,7 @@ def load(
         train_data=train_data,
         val_data=val_data,
         resampler=sp,
+        scaler=args['midband_scaler']
     )
 
 
@@ -228,8 +230,8 @@ def val_loop(batch, state, accel):
     )
 
     out = state.generator(signal.audio_data, signal.sample_rate)
-    band = state.resampler(signal.audio_data.clone())[0:].sum(0)
-    band_n = normalize_to_match_peak_batched(band, signal.audio_data)
+    band = state.resampler(signal.audio_data.clone())[1:].sum(0)
+    band_n = band * state.scaler#normalize_to_match_peak_batched(band, signal.audio_data)
     signal = AudioSignal(band_n, signal.sample_rate)
     recons = AudioSignal(out["audio"], signal.sample_rate)
 
@@ -241,7 +243,7 @@ def val_loop(batch, state, accel):
     }
 
 @timer()
-def train_loop(state, batch, accel, lambdas, save_path):
+def train_loop(state, batch, accel, lambdas):
     state.generator.train()
     state.discriminator.train()
     output = {}
@@ -255,8 +257,8 @@ def train_loop(state, batch, accel, lambdas, save_path):
     
     with accel.autocast():
         out = state.generator(signal.audio_data, signal.sample_rate, step=state.tracker.step)
-        band = state.resampler(signal.audio_data.clone())[0:].sum(0)
-        band_n = normalize_to_match_peak_batched(band, signal.audio_data)
+        band = state.resampler(signal.audio_data.clone())[1:].sum(0)
+        band_n = band * state.scaler #normalize_to_match_peak_batched(band, signal.audio_data)
         signal = AudioSignal(band_n, signal.sample_rate)
         recons = AudioSignal(out["audio"], signal.sample_rate)
         commitment_loss = out["vq/commitment_loss"]
@@ -352,10 +354,9 @@ def save_samples(state, val_idx, writer):
     )
 
     out = state.generator(signal.audio_data, signal.sample_rate)
-    band = state.resampler(signal.audio_data.clone())[0:].sum(0)
-    band_n = normalize_to_match_peak_batched(band, signal.audio_data)
-    signal = AudioSignal(band_n, signal.sample_rate)
-    recons = AudioSignal(out["audio"], signal.sample_rate)
+    band = state.resampler(signal.audio_data.clone())[1:].sum(0)
+    signal = AudioSignal(band, signal.sample_rate)
+    recons = AudioSignal(out["audio"] / state.scaler, signal.sample_rate)
 
     audio_dict = {"recons": recons}
     if state.tracker.step == 0:
@@ -444,7 +445,7 @@ def train(
 
     with tracker.live:
         for tracker.step, batch in enumerate(train_dataloader, start=tracker.step):
-            train_loop(state, batch, accel, lambdas, save_path)
+            train_loop(state, batch, accel, lambdas)
 
             last_iter = (
                 tracker.step == num_iters - 1 if num_iters is not None else False
