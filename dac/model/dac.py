@@ -259,9 +259,10 @@ class DAC(BaseModel, CodecMixin):
                 deepcopy(
                     DACSkip(
                         encoder_dim=enc_dim,
-                        latent_dim=latent_dim,
+                        latent_dim=enc_dim*2,
+                        decoder_dim=enc_dim*2,
                         codebook_size=codebook_size,
-                        **skip_args
+                        **skip_args[i]
                     )
                 )
             )
@@ -331,18 +332,32 @@ class DAC(BaseModel, CodecMixin):
                 Number of samples in input audio
         """
         z_main, skip_feat = self.encoder(audio_data)
-        z_main, core_codes, _, _, _, _ = self.quantizer(z_main, n_quantizers=n_quantizers[0], step=step)
-        skip_out_mb = self.skip_aes[0](skip_feat[1], n_quantizers=n_quantizers[1], step=step)
-        skip_out_hb = self.skip_aes[1](skip_feat[2], n_quantizers=n_quantizers[2], step=step)
-        x_skip, mb_codes, latents, commitment_loss, codebook_loss, entropy_loss = (
-            skip_out["audio"],
-            skip_out["codes"],
-            skip_out["latents"],
-            skip_out["vq/commitment_loss"],
-            skip_out["vq/codebook_loss"],
-            skip_out["vq/entropy_loss"],
+        z_main, core_codes, _, _, _, _ = self.quantizer(
+            z_main, n_quantizers=n_quantizers[0], step=step
         )
-        return z_main, x_skip, core_codes, mb_codes, latents, commitment_loss, codebook_loss, entropy_loss
+        skip_out_mb = self.skip_aes[0](
+            skip_feat[1], n_quantizers=n_quantizers[1], step=step
+        )
+        skip_out_hb = self.skip_aes[1](
+            skip_feat[2], n_quantizers=n_quantizers[2], step=step
+        )
+        commitment_loss, codebook_loss, entropy_loss = (
+            skip_out_hb["vq/commitment_loss"],
+            skip_out_hb["vq/codebook_loss"],
+            skip_out_hb["vq/entropy_loss"],
+        )
+        feats = {"core": z_main, "mb": skip_out_mb["audio"], "hb": skip_out_hb["audio"]}
+        codes = {
+            "core": core_codes,
+            "mb": skip_out_mb["codes"],
+            "hb": skip_out_hb["codes"],
+        }
+        losses = {
+            "commitment_loss": commitment_loss,
+            "codebook_loss": codebook_loss,
+            "entropy_loss": entropy_loss,
+        }
+        return feats, codes, losses
 
     def decode(self, z: torch.Tensor, blind_level: int | None = None):
         """Decode given latent codes and return audio data
@@ -416,21 +431,19 @@ class DAC(BaseModel, CodecMixin):
         """
         length = audio_data.shape[-1]
         audio_data = self.preprocess(audio_data, sample_rate)
-        z_main, x_skip, core_codes, mb_codes, latents, commitment_loss, codebook_loss, entropy_loss = self.encode(
+        feats, codes, losses = self.encode(
             audio_data, n_quantizers, step=step
         )
 
-        x_blind = self.decode(z_main, blind_level=0)
-        x_band = self.multidecoders[0](x_skip, blind_level=None, x_blind=x_blind)
+        xcore_blind = self.decode(feats['core'], blind_level=0)
+        xmb_blind = self.multidecoders[0](feats['mb'], blind_level=0, x_blind=xcore_blind)
+        xhb_band= self.multidecoders[1](feats['hb'], blind_level=None, x_blind=xmb_blind)
         return {
-            "audio": x_band[..., :length],
-            "z": z_main,
-            "codes": mb_codes,
-            "core_codes": core_codes,
-            "latents": latents,
-            "vq/commitment_loss": commitment_loss,
-            "vq/codebook_loss": codebook_loss,
-            "vq/entropy_loss": entropy_loss,
+            "audio": xhb_band[..., :length],
+            "codes": codes,
+            "vq/commitment_loss": losses['commitment_loss'],
+            "vq/codebook_loss": losses['codebook_loss'],
+            "vq/entropy_loss": losses['entropy_loss'],
         }
 
 
