@@ -253,25 +253,26 @@ class DAC(BaseModel, CodecMixin):
         )
         from copy import deepcopy
         self.skip_aes = nn.ModuleList([])
-        self.skip_aes.append(
-            deepcopy(
-                DACSkip(
-                    encoder_dim=latent_dim//2,
-                    latent_dim=latent_dim,
-                    codebook_size=codebook_size,
-                    **skip_args
+        self.multidecoders = nn.ModuleList([])
+        for i, enc_dim in enumerate([latent_dim//2, latent_dim//4]):
+            self.skip_aes.append(
+                deepcopy(
+                    DACSkip(
+                        encoder_dim=enc_dim,
+                        latent_dim=latent_dim,
+                        codebook_size=codebook_size,
+                        **skip_args
+                    )
                 )
             )
-        )
-        self.multidecoders = nn.ModuleList([])
-        self.multidecoders.append(
-            Decoder(
-                latent_dim//2,
-                latent_dim//2,
-                decoder_rates[1:],
-                skip=True
+            self.multidecoders.append(
+                Decoder(
+                    enc_dim,
+                    enc_dim,
+                    decoder_rates[(i+1):],
+                    skip=True
+                )
             )
-        )
 
         self.decoder = Decoder(
             latent_dim,
@@ -297,7 +298,7 @@ class DAC(BaseModel, CodecMixin):
     def encode(
         self,
         audio_data: torch.Tensor,
-        n_quantizers: list = [None, None],
+        n_quantizers: list = [None, None, None],
         step: int = None,
     ):
         """Encode given audio data and return quantized latent codes
@@ -331,7 +332,8 @@ class DAC(BaseModel, CodecMixin):
         """
         z_main, skip_feat = self.encoder(audio_data)
         z_main, core_codes, _, _, _, _ = self.quantizer(z_main, n_quantizers=n_quantizers[0], step=step)
-        skip_out = self.skip_aes[0](skip_feat[1], n_quantizers=n_quantizers[1], step=step)
+        skip_out_mb = self.skip_aes[0](skip_feat[1], n_quantizers=n_quantizers[1], step=step)
+        skip_out_hb = self.skip_aes[1](skip_feat[2], n_quantizers=n_quantizers[2], step=step)
         x_skip, mb_codes, latents, commitment_loss, codebook_loss, entropy_loss = (
             skip_out["audio"],
             skip_out["codes"],
@@ -375,7 +377,7 @@ class DAC(BaseModel, CodecMixin):
         self,
         audio_data: torch.Tensor,
         sample_rate: int = None,
-        n_quantizers: list = [None, None],
+        n_quantizers: list = [None, None, None],
         step: int = None,
     ):
         """Model forward pass

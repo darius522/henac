@@ -166,8 +166,8 @@ def load(
     tracker.print(generator)
     tracker.print(discriminator)
 
-    generator = accel.prepare_model(generator, find_unused_parameters=True)
-    discriminator = accel.prepare_model(discriminator, find_unused_parameters=True)
+    generator = accel.prepare_model(generator)#, find_unused_parameters=True)
+    discriminator = accel.prepare_model(discriminator)#, find_unused_parameters=True)
 
     with argbind.scope(args, "generator"):
         optimizer_g = AdamW(generator.parameters(), use_zero=accel.use_ddp)
@@ -443,24 +443,24 @@ def train(
     save_samples = when(lambda: accel.local_rank == 0)(save_samples)
     checkpoint = when(lambda: accel.local_rank == 0)(checkpoint)
 
-    with tracker.live:
-        for tracker.step, batch in enumerate(train_dataloader, start=tracker.step):
-            train_loop(state, batch, accel, lambdas)
+    # with tracker.live:
+    for tracker.step, batch in enumerate(train_dataloader, start=tracker.step):
+        train_loop(state, batch, accel, lambdas)
 
-            last_iter = (
-                tracker.step == num_iters - 1 if num_iters is not None else False
-            )
-            if tracker.step % sample_freq == 0 or last_iter:
-                save_samples(state, val_idx, writer)
+        last_iter = (
+            tracker.step == num_iters - 1 if num_iters is not None else False
+        )
+        if tracker.step % sample_freq == 0 or last_iter:
+            save_samples(state, val_idx, writer)
 
-            if tracker.step % valid_freq == 0 or last_iter:
-                validate(state, val_dataloader, accel)
-                checkpoint(state, save_iters, save_path)
-                # Reset validation progress bar, print summary since last validation.
-                tracker.done("val", f"Iteration {tracker.step}")
+        if tracker.step % valid_freq == 0 or last_iter:
+            validate(state, val_dataloader, accel)
+            checkpoint(state, save_iters, save_path)
+            # Reset validation progress bar, print summary since last validation.
+            tracker.done("val", f"Iteration {tracker.step}")
 
-            if last_iter:
-                break
+        if last_iter:
+            break
 
 
 if __name__ == "__main__":
