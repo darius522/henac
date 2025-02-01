@@ -5,8 +5,8 @@ sys.path.append('/N/slate/daripete/jstsp-dac')
 import dac
 from audiotools import AudioSignal
 
+import yaml
 import pandas as pd
-import torch
 from tqdm import tqdm
 import soundfile as sf 
 import numpy as np
@@ -18,9 +18,6 @@ import argparse, os
 from utils.audio_utils import normalize_to_match_peak_batched
 
 import julius
-
-from matplotlib import pyplot as plt
-import pyloudnorm as pyln
 
 
 def compute_entropy(code_tensor, N=1024, M=4, frame_rate=500):
@@ -60,12 +57,26 @@ def compute_entropy(code_tensor, N=1024, M=4, frame_rate=500):
     
     return total_bitrate
 
+def get_model_args(conf_path):
+    with open(conf_path, "r") as file:
+        config = yaml.safe_load(file)
+
+    # Extract DAC-specific arguments
+    dac_prefix = "DAC."
+    return {
+        key[len(dac_prefix):]: value for key, value in config.items() if key.startswith(dac_prefix)
+    }
+
 
 def main(args):
-    if not os.path.exists(args.output_path):
-        os.makedirs(args.output_path)
 
-    model = dac.DAC.load(args.model_path, strict=True)
+    outpath = os.path.join(args.model_path, 'audios')
+    os.makedirs(outpath, exist_ok=True)
+    conf_file = '/'.join(args.model_path.split('/')[:-1]) + '/conf.yaml'
+    
+    import pdb; pdb.set_trace()
+    
+    model = dac.DAC.load(os.path.join(args.model_path, 'dac/weights.pth'), strict=True, kwargs=get_model_args(conf_file))
     model.eval()
     model.to("cuda")
 
@@ -102,27 +113,27 @@ def main(args):
         
         
         sf.write(
-            os.path.join(args.output_path, f"{fname}_full_input.wav"),
+            os.path.join(outpath, f"{fname}_full_input.wav"),
             signal.reshape(-1).numpy(),
             samplerate=24_000,
         )
         sf.write(
-            os.path.join(args.output_path, f"{fname}_full_output.wav"),
+            os.path.join(outpath, f"{fname}_full_output.wav"),
             y_blind.reshape(-1).numpy(),
             samplerate=24_000,
         )
         # sf.write(
-        #     os.path.join(args.output_path, f"{fname}_band_input.wav"),
+        #     os.path.join(outpath, f"{fname}_band_input.wav"),
         #     signal_band.reshape(-1).numpy(),
         #     samplerate=24_000,
         # )
         # sf.write(
-        #     os.path.join(args.output_path, f"{fname}_band_output.wav"),
+        #     os.path.join(outpath, f"{fname}_band_output.wav"),
         #     y_band.reshape(-1).numpy(),
         #     samplerate=24_000,
         # )
         sf.write(
-            os.path.join(args.output_path, f"{fname}_mb_rec.wav"),
+            os.path.join(outpath, f"{fname}_mb_rec.wav"),
             mb_rec.reshape(-1).numpy(),
             samplerate=24_000,
         )
@@ -149,13 +160,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs/midband_cb2_4096_cb24/latest/dac/weights.pth",
+        default="/N/slate/daripete/jstsp-dac/runs/highband_cb1_8/latest",
         required=False,
     )
     parser.add_argument(
         "--output-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs/midband_cb2_4096_cb24/latest/audios",
+        default=None,
         required=False,
     )
     args = parser.parse_args()
