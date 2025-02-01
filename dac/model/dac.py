@@ -441,6 +441,7 @@ class DAC(BaseModel, CodecMixin):
         return {
             "audio": xhb_band[..., :length],
             "codes": codes,
+            "feats": feats,
             "vq/commitment_loss": losses['commitment_loss'],
             "vq/codebook_loss": losses['codebook_loss'],
             "vq/entropy_loss": losses['entropy_loss'],

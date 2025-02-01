@@ -146,14 +146,13 @@ def load(
         state_dict = torch.load(os.path.join(resume, "dac/weights_resave.pth"), weights_only=True)["state_dict"]
         state_dict = {k: v for k, v in state_dict.items() if not "skip_aes" in k}
         generator.load_state_dict(state_dict, strict=False,)
-
         if args['decoder_frozen']:
-            trainable_params = ["skip_aes.0", "multidecoders.0.model.0.t_conv.skip."]
+            trainable_params = ["skip_aes.1", "multidecoders.1.model.0.t_conv.skip."]
             discardable_params = []
             print('Warning: Decoder frozen')
         else:
-            trainable_params = ["skip_aes.0", "multidecoders.0"]
-            discardable_params = ["multidecoders.0.model.0.t_conv.blind."]  # params part of the first layer of the decoder for blind_us
+            trainable_params = ["skip_aes.1", "multidecoders.1"]
+            discardable_params = ["multidecoders.1.model.0.t_conv.blind."]  # params part of the first layer of the decoder for blind_us
             print('Warning: Decoder trainable')
 
         for name, param in generator.named_parameters():
@@ -162,7 +161,7 @@ def load(
             else:
                 tracker.print(f"Exclude parameter {name} from generator training.")
                 param.requires_grad = False
-    
+
     tracker.print(generator)
     tracker.print(discriminator)
 

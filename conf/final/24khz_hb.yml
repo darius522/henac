@@ -31,7 +31,7 @@ DAC.skip_args:
     gumbel_softmax: false
     diff_entropy: false
 
-resume_ckpt: '/N/slate/daripete/jstsp-dac/runs/baseline3/300k'
+resume_ckpt: '/N/slate/daripete/jstsp-dac/runs/midband_cb2_4096/300k'
 decoder_frozen: false
 
 # Discriminator
