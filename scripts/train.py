@@ -144,7 +144,7 @@ def load(
     if resume != "":
         assert os.path.exists(os.path.join(resume, "dac/weights_resave.pth")), "Checkpoint path provided but not found!"
         state_dict = torch.load(os.path.join(resume, "dac/weights_resave.pth"), weights_only=True)["state_dict"]
-        state_dict = {k: v for k, v in state_dict.items() if not "skip_aes" in k}
+        state_dict = {k: v for k, v in state_dict.items() if not "skip_aes.1." in k}  # discard untrained skip_ae from dict
         generator.load_state_dict(state_dict, strict=False,)
         if args['decoder_frozen']:
             trainable_params = ["skip_aes.1", "multidecoders.1.model.0.t_conv.skip."]

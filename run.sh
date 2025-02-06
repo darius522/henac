@@ -20,6 +20,6 @@ CODE_ROOT="$PWD"
 
 CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun \
                     --nproc_per_node gpu scripts/train.py \
-                    --args.load conf/final/24khz_hb_3.yml \
+                    --args.load conf/final/24khz_hb_5.yml \
                     --seed 1 \
-                    --save_path runs/highband_cb2_4096_nogan
+                    --save_path runs/highband_cb1_16384_stride_6

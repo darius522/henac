@@ -446,6 +446,35 @@ class DAC(BaseModel, CodecMixin):
             "vq/codebook_loss": losses['codebook_loss'],
             "vq/entropy_loss": losses['entropy_loss'],
         }
+    
+    def infer_bands(
+        self,
+        audio_data: torch.Tensor,
+        sample_rate: int = None,
+        n_quantizers: list = [None, None, None],
+        step: int = None,
+    ):
+        length = audio_data.shape[-1]
+        audio_data = self.preprocess(audio_data, sample_rate)
+        feats, codes, losses = self.encode(
+            audio_data, n_quantizers, step=step
+        )
+        
+        # coreband
+        xcore = self.decode(feats['core'], blind_level=None)
+
+        # midband
+        xcore_blind = self.decode(feats['core'], blind_level=0)
+        xmb = self.multidecoders[0](feats['mb'], blind_level=None, x_blind=xcore_blind)
+        
+        # highband
+        xmb_blind = self.multidecoders[0](feats['mb'], blind_level=0, x_blind=xcore_blind)
+        xhb = self.multidecoders[1](feats['hb'], blind_level=None, x_blind=xmb_blind)
+        
+        return {
+            "audio": {'core': xcore, 'mb': xmb, 'hb': xhb},
+            "codes": codes,
+        }
 
 
 if __name__ == "__main__":
