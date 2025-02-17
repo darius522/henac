@@ -7,10 +7,11 @@ DAC.decoder_rates: [20, 4, 2, 2]
 DAC.latent_dim: 1024
 
 # Quantization
-DAC.n_codebooks: 32
+DAC.n_codebooks: 18
 DAC.codebook_size: 1024
 DAC.codebook_dim: 8
-DAC.quantizer_dropout: 0.5
+DAC.quantizer_dropout: 0.0
+DAC.min_n_codebooks: 18  # min number of cb used during dropout
 
 # Skip-specific
 DAC.skip_args:
@@ -22,7 +23,7 @@ DAC.skip_args:
   gumbel_softmax: false
   diff_entropy: false
 
-resume_ckpt: '/N/slate/daripete/jstsp-dac/runs/baseline3/300k'
+resume_ckpt: '/N/slate/daripete/jstsp-dac/runs2/baseline_18cb/300k'
 decoder_frozen: false
 
 # Discriminator
