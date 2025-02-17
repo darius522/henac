@@ -10,7 +10,8 @@ DAC.latent_dim: 1024
 DAC.n_codebooks: 32
 DAC.codebook_size: 1024
 DAC.codebook_dim: 8
-DAC.quantizer_dropout: 0.5
+DAC.quantizer_dropout: 0.0
+DAC.min_n_codebooks: 1  # min number of cb used during dropout
 
 # Skip-specific
 DAC.skip_args:

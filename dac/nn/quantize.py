@@ -134,6 +134,7 @@ class ResidualVectorQuantize(nn.Module):
         tau_decay: float = 5e-4,
         gumbel_softmax: bool = False,
         diff_entropy: bool = False,
+        min_n_codebooks: int = 1,
     ):
         super().__init__()
         if isinstance(codebook_dim, int):
@@ -151,6 +152,7 @@ class ResidualVectorQuantize(nn.Module):
         )
         self.quantizer_dropout = quantizer_dropout
         self.diff_entropy = diff_entropy
+        self.min_n_codebooks = min_n_codebooks
 
     def forward(self, z, n_quantizers: int = None, step: int = None):
         """Quantized the input tensor using a fixed set of `n` codebooks and returns
@@ -197,11 +199,11 @@ class ResidualVectorQuantize(nn.Module):
             n_quantizers = self.n_codebooks
         if self.training:
             n_quantizers = torch.ones((z.shape[0],)) * self.n_codebooks + 1
-            dropout = torch.randint(1, self.n_codebooks + 1, (z.shape[0],))
+            dropout = torch.randint(self.min_n_codebooks, self.n_codebooks + 1, (z.shape[0],))
             n_dropout = int(z.shape[0] * self.quantizer_dropout)
             n_quantizers[:n_dropout] = dropout[:n_dropout]
             n_quantizers = n_quantizers.to(z.device)
-
+        print(n_quantizers)
         for i, quantizer in enumerate(self.quantizers):
             if self.training is False and i >= n_quantizers:
                 break

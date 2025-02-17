@@ -140,6 +140,7 @@ notebooks/*.gif
 notebooks/*.wav
 notebooks/*.mp4
 *runs/
+*runs2/
 boards/
 samples/
 *.ipynb

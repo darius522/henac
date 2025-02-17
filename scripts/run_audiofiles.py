@@ -85,7 +85,7 @@ def main(args):
         out = model.forward(signal.audio_data, n_quantizers=num_codebook)
         y, codes = out['audio'], out['codes']
         #bands = resampler(signal.audio_data)
-        entropies['codes'].append(compute_entropy(codes.squeeze(0).detach().cpu().numpy(), M=num_codebook[0], frame_rate=75))
+        entropies['full'].append(compute_entropy(codes.squeeze(0).detach().cpu().numpy(), M=num_codebook[0], frame_rate=75))
 
         y, signal = y.to('cpu').detach(), signal.audio_data.to('cpu').detach()
         snrs['full'].append(ScaleInvariantSignalNoiseRatio().to("cpu")(y, signal))
@@ -123,13 +123,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs/baseline2/300k/dac/weights.pth",
+        default="/N/slate/daripete/jstsp-dac/runs2/baseline_32cb/300k/dac/weights.pth",
         required=False,
     )
     parser.add_argument(
         "--output-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs/baseline2/300k/audios",
+        default="/N/slate/daripete/jstsp-dac/runs2/baseline_32cb/300k/audios",
         required=False,
     )
     args = parser.parse_args()

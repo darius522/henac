@@ -224,6 +224,7 @@ class DAC(BaseModel, CodecMixin):
         quantizer_dropout: bool = False,
         sample_rate: int = 44100,
         skip_args: dict = dict(),
+        min_n_codebooks: int = 1,
     ):
         super().__init__()
 
@@ -249,7 +250,8 @@ class DAC(BaseModel, CodecMixin):
             codebook_size=codebook_size,
             codebook_dim=codebook_dim,
             quantizer_dropout=quantizer_dropout,
-            gumbel_softmax=False
+            gumbel_softmax=False,
+            min_n_codebooks=min_n_codebooks,
         )
         from copy import deepcopy
         self.skip_aes = nn.ModuleList([])
