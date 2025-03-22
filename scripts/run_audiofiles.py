@@ -88,7 +88,7 @@ def results_to_csv(fnames, entropies, snrs, path):
         "snrs_hb": snrs["hb"],
     }
 
-    df = pd.DataFrame(data).sort_values(by="snrs_hb", ascending=False)
+    #df = pd.DataFrame(data).sort_values(by="snrs_hb", ascending=False)
     df.to_csv(path, index=False)
 
 def get_model_args(conf_path):

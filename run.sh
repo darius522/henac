@@ -10,7 +10,7 @@
 #SBATCH --gres=gpu:4
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=8
-#SBATCH --time=20:00:00
+#SBATCH --time=30:00:00
 #SBATCH --mem=40G
 #SBATCH -A r00105
 
@@ -20,6 +20,6 @@ CODE_ROOT="$PWD"
 
 CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun \
                     --nproc_per_node gpu scripts/train.py \
-                    --args.load conf/final/24khz_hb_5.yml \
+                    --args.load conf/final/24khz_hb_1.yml \
                     --seed 1 \
-                    --save_path runs/highband_cb1_16384_stride_6
+                    --save_path runs2/hb_24_18cb
