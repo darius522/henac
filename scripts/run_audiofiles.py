@@ -1,6 +1,7 @@
 import sys
+import yaml
 
-sys.path.append('/N/slate/daripete/jstsp-dac')
+sys.path.append("/N/slate/daripete/jstsp-dac")
 
 import dac
 from audiotools import AudioSignal
@@ -8,7 +9,7 @@ from audiotools import AudioSignal
 import pandas as pd
 import torch
 from tqdm import tqdm
-import soundfile as sf 
+import soundfile as sf
 import numpy as np
 
 from torchmetrics.audio import ScaleInvariantSignalNoiseRatio
@@ -25,56 +26,88 @@ from matplotlib import pyplot as plt
 def compute_entropy(code_tensor, N=1024, M=4, frame_rate=500):
     """
     Calculate the entropy-based bitrate of an RVQ-based neural audio codec.
-    
+
     Args:
     - code_tensor (ndarray): The code tensor of shape [M, T] where M is the number of codebooks and T is the number of time frames.
     - N (int): The size of each codebook (number of entries in the codebook).
     - M (int): The number of codebooks.
     - frame_rate (int): The frame rate (frames per second).
-    
+
     Returns:
     - bitrate (float): The entropy-based bitrate in bits per second.
     """
     import numpy as np
     from scipy.stats import entropy
+
     # Initialize the total entropy
     total_entropy, total_bitrate = [], []
-    
+
     # Loop over each codebook (axis 0)
     for i in range(M):
         # Get the codebook indices for this codebook (shape [T,])
         codebook_indices = code_tensor[i]
-        
+
         # Compute the frequency distribution of the indices in the codebook
         # Calculate probabilities (relative frequencies)
         counts = np.bincount(codebook_indices, minlength=N)
         probabilities = counts / len(codebook_indices)
-        
+
         # Calculate the entropy for this codebook
         codebook_entropy = entropy(probabilities, base=2)  # Entropy in bits
-        
+
         # Add the entropy for this codebook to the total entropy
         total_entropy.append(codebook_entropy)
-        total_bitrate.append(codebook_entropy*frame_rate)
-    
+        total_bitrate.append(codebook_entropy * frame_rate)
+
     return total_bitrate
 
 
-def main(args):
-    if not os.path.exists(args.output_path):
-        os.makedirs(args.output_path)
+def results_to_csv(fnames, entropies, snrs, path):
+    data = {
+        "fname": fnames,
+        "entropies": entropies,
+        "snrs": snrs,
+    }
 
-    model = dac.DAC.load(args.model_path, strict=True)
+    df = pd.DataFrame(data)
+    df.to_csv(path, index=False)
+
+
+def get_model_args(conf_path):
+    with open(conf_path, "r") as file:
+        config = yaml.safe_load(file)
+
+    # Extract DAC-specific arguments
+    dac_prefix = "DAC."
+    return {
+        key[len(dac_prefix) :]: value
+        for key, value in config.items()
+        if key.startswith(dac_prefix)
+    }
+
+
+def main(args):
+
+    outpath = os.path.join(args.model_path, "audios")
+    os.makedirs(outpath, exist_ok=True)
+    conf_file = "/".join(args.model_path.split("/")[:-1]) + "/conf.yaml"
+
+    model = dac.DAC.load(
+        os.path.join(args.model_path, "dac/weights.pth"),
+        strict=True,
+        **get_model_args(conf_file),
+    )
     model.eval()
     model.to("cuda")
 
     dataset = pd.read_csv(args.dataset)
-    entropies, snrs = dict(full=[]), dict(full=[])
-    
-    duration = 5.0
+    entropies, snrs, fnames = [], [], []
+
+    duration = 1.0
     num_codebook = [32, 1]
     for i, row in tqdm(dataset.iterrows(), total=len(dataset)):
-        fname = os.path.basename(row.path).split('.')[0]
+        fname = os.path.basename(row.path).split(".")[0]
+        fnames.append(fname)
         # Load audio signal file
         signal = AudioSignal(row.path, duration=duration)
 
@@ -83,32 +116,43 @@ def main(args):
         signal.to(model.device)
 
         out = model.forward(signal.audio_data, n_quantizers=num_codebook)
-        y, codes = out['audio'], out['codes']
-        #bands = resampler(signal.audio_data)
-        entropies['full'].append(compute_entropy(codes.squeeze(0).detach().cpu().numpy(), M=num_codebook[0], frame_rate=75))
+        y, codes = out["audio"], out["codes"]
+        # bands = resampler(signal.audio_data)
+        entropies.append(
+            compute_entropy(
+                codes.squeeze(0).detach().cpu().numpy(),
+                M=num_codebook[0],
+                frame_rate=75,
+            )
+        )
 
-        y, signal = y.to('cpu').detach(), signal.audio_data.to('cpu').detach()
-        snrs['full'].append(ScaleInvariantSignalNoiseRatio().to("cpu")(y, signal))
-        
+        y, signal = y.to("cpu").detach(), signal.audio_data.to("cpu").detach()
+        snrs.append(ScaleInvariantSignalNoiseRatio().to("cpu")(y, signal))
+
         sf.write(
-            os.path.join(args.output_path, f"{fname}_input.wav"),
+            os.path.join(outpath, f"{fname}_input.wav"),
             signal.reshape(-1).numpy(),
             samplerate=24_000,
         )
         sf.write(
-            os.path.join(args.output_path, f"{fname}_output.wav"),
+            os.path.join(outpath, f"{fname}_output.wav"),
             y.reshape(-1).numpy(),
             samplerate=24_000,
         )
-        
+
         del out
-    
-    for k, entropies in entropies.items():
-        br_per_cb = np.array(entropies).mean(0)
-        print(f'Codebook Entropy for {k}: {np.round(br_per_cb, 1)}')
-        print(f'Overall Entropy for {k}: {np.round(br_per_cb.sum(), 1)}')
-    for k, v in snrs.items():
-        print(f'Overall SNR for {k}: {np.round(np.mean(v), 1)}')
+
+    results_to_csv(
+        fnames,
+        np.array(entropies).sum(1), # sum over cb
+        np.array(snrs),
+        path=os.path.join(args.model_path, "results.csv"),
+    )
+    br_per_cb = np.array(entropies).mean(0)
+    print(f"Codebook Entropy: {np.round(br_per_cb, 1)}")
+    print(f"Overall Entropy: {np.round(br_per_cb.sum(), 1)}")
+    print(f"Overall SNR: {np.round(np.mean(snrs), 1)}")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -117,25 +161,25 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/datasets/fma_test_subset.csv",
+        default="/N/slate/daripete/jstsp-dac/datasets/fma_test.csv",
         required=False,
     )
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs2/baseline_32cb/300k/dac/weights.pth",
+        default="/N/slate/daripete/jstsp-dac/runs2/baseline_32cb/300k",
         required=False,
     )
     parser.add_argument(
         "--output-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs2/baseline_32cb/300k/audios",
+        default=None,
         required=False,
     )
     args = parser.parse_args()
 
     main(args)
-    
+
 # latent_dim = 32
 # Overall Bitrate per CB: [3976.7 4110.9 4189.7 4190. ]
 # Overall SNR for midband: 2.0
