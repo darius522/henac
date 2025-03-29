@@ -72,6 +72,11 @@ def results_to_csv(fnames, entropies, snrs, path):
     df = pd.DataFrame(data)
     df.to_csv(path, index=False)
 
+def get_chunks(signal, chunk_duration, sample_rate):
+    B, C, T = signal.shape
+    chunk_size = int(chunk_duration * sample_rate)  # Convert duration to samples
+    
+    return [signal[:, :, start : min(start + chunk_size, T)] for start in range(0, T, chunk_size)]
 
 def get_model_args(conf_path):
     with open(conf_path, "r") as file:
@@ -100,55 +105,56 @@ def main(args):
     model.eval()
     model.to("cuda")
 
-    dataset = pd.read_csv(args.dataset)
-    entropies, snrs, fnames = [], [], []
+    dataset = pd.read_csv(args.dataset)[:1000]
+    all_codes, snrs, fnames = [], [], []
 
-    duration = 1.0
+    duration = 10.0
     num_codebook = [32, 1]
     for i, row in tqdm(dataset.iterrows(), total=len(dataset)):
-        fname = os.path.basename(row.path).split(".")[0]
-        fnames.append(fname)
-        # Load audio signal file
-        signal = AudioSignal(row.path, duration=duration)
+        audio = AudioSignal(row.path, duration=30.)
+        if audio.shape[-1] < duration * 24_000:
+            print('Audio shorter that duration, skipping!')
+            continue
 
-        # Encode audio signal as one long file
-        # (may run out of GPU memory on long files)
-        signal.to(model.device)
+        signals = get_chunks(audio, duration, 24_000)
+        signals = AudioSignal.batch(signals, pad_signals=True)
+        for j, signal in enumerate(signals):
+            signal.to(model.device)
+            fname = os.path.basename(row.path).split('.')[0] + f'_chunk_{j}'
+            fnames.append(fname)
 
-        out = model.forward(signal.audio_data, n_quantizers=num_codebook)
-        y, codes = out["audio"], out["codes"]
-        # bands = resampler(signal.audio_data)
-        entropies.append(
-            compute_entropy(
-                codes.squeeze(0).detach().cpu().numpy(),
-                M=num_codebook[0],
-                frame_rate=75,
-            )
-        )
+            out = model.forward(signal.audio_data, n_quantizers=num_codebook)
+            y, codes = out["audio"], out["codes"]
+            # bands = resampler(signal.audio_data)
+            all_codes.append(codes.squeeze(0).detach().cpu().numpy())
 
-        y, signal = y.to("cpu").detach(), signal.audio_data.to("cpu").detach()
-        snrs.append(ScaleInvariantSignalNoiseRatio().to("cpu")(y, signal))
+            y, signal = y.to("cpu").detach(), signal.audio_data.to("cpu").detach()
+            snrs.append(ScaleInvariantSignalNoiseRatio().to("cpu")(y, signal))
 
-        sf.write(
-            os.path.join(outpath, f"{fname}_input.wav"),
-            signal.reshape(-1).numpy(),
-            samplerate=24_000,
-        )
-        sf.write(
-            os.path.join(outpath, f"{fname}_output.wav"),
-            y.reshape(-1).numpy(),
-            samplerate=24_000,
-        )
+            # sf.write(
+            #     os.path.join(outpath, f"{fname}_input.wav"),
+            #     signal.reshape(-1).numpy(),
+            #     samplerate=24_000,
+            # )
+            # sf.write(
+            #     os.path.join(outpath, f"{fname}_output.wav"),
+            #     y.reshape(-1).numpy(),
+            #     samplerate=24_000,
+            # )
 
-        del out
+            del out
 
+    fr = all_codes[0].shape[-1] // duration
+    codes = np.concatenate(all_codes, -1)
+    bitrates = compute_entropy(codes, N=1024, M=codes.shape[0], frame_rate=fr)
+    import pdb; pdb.set_trace()
     results_to_csv(
         fnames,
-        np.array(entropies).sum(1), # sum over cb
+        np.array(bitrates).sum(), # sum over cb
         np.array(snrs),
         path=os.path.join(args.model_path, "results.csv"),
     )
-    br_per_cb = np.array(entropies).mean(0)
+    br_per_cb = np.array(bitrates)
     print(f"Codebook Entropy: {np.round(br_per_cb, 1)}")
     print(f"Overall Entropy: {np.round(br_per_cb.sum(), 1)}")
     print(f"Overall SNR: {np.round(np.mean(snrs), 1)}")
