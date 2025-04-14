@@ -25,10 +25,10 @@ def get_metrics(signal_path, recons_path, state):
     output = {}
     signal = AudioSignal(signal_path)
     recons = AudioSignal(recons_path)
-    for sr in [22050, 44100]:
+    for sr in [24_000]:
         x = signal.clone().resample(sr)
         y = recons.clone().resample(sr)
-        k = "22k" if sr == 22050 else "44k"
+        k = "24k" if sr == 24_000 else "44k"
         output.update(
             {
                 f"mel-{k}": state.mel_loss(x, y),
@@ -36,7 +36,7 @@ def get_metrics(signal_path, recons_path, state):
                 f"waveform-{k}": state.waveform_loss(x, y),
                 f"sisdr-{k}": state.sisdr_loss(x, y),
                 f"visqol-audio-{k}": metrics.quality.visqol(x, y),
-                f"visqol-speech-{k}": metrics.quality.visqol(x, y, "speech"),
+                #f"visqol-speech-{k}": metrics.quality.visqol(x, y, "speech"),
             }
         )
     output["path"] = signal.path_to_file
@@ -47,8 +47,8 @@ def get_metrics(signal_path, recons_path, state):
 @argbind.bind(without_prefix=True)
 @torch.no_grad()
 def evaluate(
-    input: str = "samples/input",
-    output: str = "samples/output",
+    input: str = "/N/slate/daripete/jstsp-dac/runs2/baseline_32cb/300k/audios/input",
+    output: str = "/N/slate/daripete/jstsp-dac/runs2/baseline_32cb/300k/audios/output",
     n_proc: int = 50,
 ):
     tracker = Tracker()

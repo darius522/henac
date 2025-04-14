@@ -93,8 +93,10 @@ def get_model_args(conf_path):
 
 def main(args):
 
-    outpath = os.path.join(args.model_path, "audios")
-    os.makedirs(outpath, exist_ok=True)
+    outpath_in = os.path.join(args.model_path, "audios/input")
+    outpath_out = os.path.join(args.model_path, "audios/output")
+    os.makedirs(outpath_in, exist_ok=True)
+    os.makedirs(outpath_out, exist_ok=True)
     conf_file = "/".join(args.model_path.split("/")[:-1]) + "/conf.yaml"
 
     model = dac.DAC.load(
@@ -105,10 +107,11 @@ def main(args):
     model.eval()
     model.to("cuda")
 
-    dataset = pd.read_csv(args.dataset)[:1000]
+    dataset = pd.read_csv(args.dataset)
+    dataset = dataset.sort_values(by='path')[:1000]
     all_codes, snrs, fnames = [], [], []
 
-    duration = 10.0
+    duration = 6.0
     num_codebook = [32, 1]
     for i, row in tqdm(dataset.iterrows(), total=len(dataset)):
         audio = AudioSignal(row.path, duration=30.)
@@ -131,23 +134,22 @@ def main(args):
             y, signal = y.to("cpu").detach(), signal.audio_data.to("cpu").detach()
             snrs.append(ScaleInvariantSignalNoiseRatio().to("cpu")(y, signal))
 
-            # sf.write(
-            #     os.path.join(outpath, f"{fname}_input.wav"),
-            #     signal.reshape(-1).numpy(),
-            #     samplerate=24_000,
-            # )
-            # sf.write(
-            #     os.path.join(outpath, f"{fname}_output.wav"),
-            #     y.reshape(-1).numpy(),
-            #     samplerate=24_000,
-            # )
+            sf.write(
+                os.path.join(outpath_in, f"{fname}.wav"),
+                signal.reshape(-1).numpy(),
+                samplerate=24_000,
+            )
+            sf.write(
+                os.path.join(outpath_out, f"{fname}.wav"),
+                y.reshape(-1).numpy(),
+                samplerate=24_000,
+            )
 
             del out
 
     fr = all_codes[0].shape[-1] // duration
     codes = np.concatenate(all_codes, -1)
     bitrates = compute_entropy(codes, N=1024, M=codes.shape[0], frame_rate=fr)
-    import pdb; pdb.set_trace()
     results_to_csv(
         fnames,
         np.array(bitrates).sum(), # sum over cb
