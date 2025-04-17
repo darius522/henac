@@ -12,6 +12,8 @@ from audiotools.core import util
 from audiotools.ml.decorators import Tracker
 from train import losses
 
+import julius
+
 
 @dataclass
 class State:
@@ -23,12 +25,15 @@ class State:
 
 def get_metrics(signal_path, recons_path, state):
     output = {}
+    bands = [3000, 6000]
     signal = AudioSignal(signal_path)
     recons = AudioSignal(recons_path)
-    for sr in [22050, 44100]:
-        x = signal.clone().resample(sr)
-        y = recons.clone().resample(sr)
-        k = "22k" if sr == 22050 else "44k"
+    sp = julius.SplitBands(24_000, cutoffs=bands).to('cpu')
+    xb, yb = sp(signal.audio_data.clone()), sp(recons.audio_data.clone())
+    for x, y, k in zip(xb, yb, bands + [12000]):
+        k = str(k)
+        x = AudioSignal(x, signal.sample_rate)
+        y = AudioSignal(y, signal.sample_rate)
         output.update(
             {
                 f"mel-{k}": state.mel_loss(x, y),
@@ -39,17 +44,17 @@ def get_metrics(signal_path, recons_path, state):
                 #f"visqol-speech-{k}": metrics.quality.visqol(x, y, "speech"),
             }
         )
-    output["path"] = signal.path_to_file
-    output.update(signal.metadata)
+        output["path"] = signal.path_to_file
+        output.update(signal.metadata)
     return output
 
 
 @argbind.bind(without_prefix=True)
 @torch.no_grad()
 def evaluate(
-    input: str = "samples/input",
-    output: str = "samples/output",
-    n_proc: int = 50,
+    input: str = "/N/slate/daripete/jstsp-dac/runs2/baseline_32cb/300k/audios/input",
+    output: str = "/N/slate/daripete/jstsp-dac/runs2/baseline_32cb/300k/audios/output",
+    n_proc: int = 46,
 ):
     tracker = Tracker()
 
@@ -81,7 +86,7 @@ def evaluate(
 
     futures = []
     with tracker.live:
-        with open(output / "metrics.csv", "w") as csvfile:
+        with open(output / "metrics_multi.csv", "w") as csvfile:
             with ProcessPoolExecutor(n_proc, mp.get_context("fork")) as pool:
                 for i in range(len(audio_files)):
                     future = pool.submit(

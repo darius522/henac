@@ -111,8 +111,10 @@ def get_model_args(conf_path):
 
 def main(args):
 
-    outpath = os.path.join(args.model_path, 'audios')
-    os.makedirs(outpath, exist_ok=True)
+    outpath_in = os.path.join(args.model_path, "audios/input")
+    outpath_out = os.path.join(args.model_path, "audios/output")
+    os.makedirs(outpath_in, exist_ok=True)
+    os.makedirs(outpath_out, exist_ok=True)
     conf_file = '/'.join(args.model_path.split('/')[:-1]) + '/conf.yaml'
         
     model = dac.DAC.load(os.path.join(args.model_path, 'dac/weights.pth'), strict=True, **get_model_args(conf_file))
@@ -164,16 +166,16 @@ def main(args):
             #         y_band.reshape(-1).cpu().detach().numpy(),
             #         samplerate=24_000,
             #     )
-            # sf.write(
-            #     os.path.join(outpath, f"{fname}_input.wav"),
-            #     signal.audio_data.reshape(-1).cpu().detach().numpy(),
-            #     samplerate=24_000,
-            # )
-            # sf.write(
-            #     os.path.join(outpath, f"{fname}_ouput.wav"),
-            #     mb_rec.reshape(-1),
-            #     samplerate=24_000,
-            # )
+            sf.write(
+                os.path.join(outpath_in, f"{fname}.wav"),
+                signal.audio_data.reshape(-1).cpu().detach().numpy(),
+                samplerate=24_000,
+            )
+            sf.write(
+                os.path.join(outpath_out, f"{fname}.wav"),
+                mb_rec.reshape(-1),
+                samplerate=24_000,
+            )
 
             for k in list(codes.keys()):  # Convert to list to avoid runtime errors
                 codes[k] = codes[k].detach().cpu()
