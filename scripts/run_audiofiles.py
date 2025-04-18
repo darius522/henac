@@ -5,11 +5,14 @@ sys.path.append('/N/slate/daripete/jstsp-dac')
 import dac
 from audiotools import AudioSignal
 
+import yaml
 import pandas as pd
-import torch
 from tqdm import tqdm
 import soundfile as sf 
 import numpy as np
+import torch
+from matplotlib import pyplot as plt
+import librosa
 
 from torchmetrics.audio import ScaleInvariantSignalNoiseRatio
 
@@ -19,9 +22,7 @@ from utils.audio_utils import normalize_to_match_peak_batched
 
 import julius
 
-from matplotlib import pyplot as plt
-import pyloudnorm as pyln
-
+import gc
 
 def compute_entropy(code_tensor, N=1024, M=4, frame_rate=500):
     """
@@ -60,79 +61,146 @@ def compute_entropy(code_tensor, N=1024, M=4, frame_rate=500):
     
     return total_bitrate
 
+def spectrogram(signal, path):
+    plt.clf()
+    plt.cla()
+    f = plt.figure(figsize=(10, 4))
+    D = np.abs(librosa.stft(signal.audio_data.squeeze().numpy()))
+    librosa.display.specshow(librosa.amplitude_to_db(D, ref=np.max), sr=24_000, hop_length=512, cmap='magma')  
+    plt.axis('off')
+    plt.tight_layout()
+    plt.savefig(path, dpi=100)
+    del f
+
+def results_to_csv(fnames, entropies, snrs, path):
+    # Compute element-wise sum for entropies_all
+    entropies = {k: np.array(v).sum(-1) for k, v in entropies.items()}
+    entropies_all = entropies['core'] + entropies['mb']
+
+    data = {
+        "fname": fnames,
+        "entropies_core": entropies["core"],
+        "entropies_mb": entropies["mb"],
+        "entropies_all": entropies_all,
+        "snrs_core": snrs["core"],
+        "snrs_mb": snrs["mb"],
+    }
+
+    df = pd.DataFrame(data)#.sort_values(by="snrs_hb", ascending=False)
+    df.to_csv(path, index=False)
+    
+def get_chunks(signal, chunk_duration, sample_rate):
+    B, C, T = signal.shape
+    chunk_size = int(chunk_duration * sample_rate)  # Convert duration to samples
+    
+    return [signal[:, :, start : min(start + chunk_size, T)] for start in range(0, T, chunk_size)]
+
+def get_model_args(conf_path):
+    with open(conf_path, "r") as file:
+        config = yaml.safe_load(file)
+
+    # Extract DAC-specific arguments
+    dac_prefix = "DAC."
+    return {
+        key[len(dac_prefix):]: value for key, value in config.items() if key.startswith(dac_prefix)
+    }
+
+
 
 def main(args):
-    if not os.path.exists(args.output_path):
-        os.makedirs(args.output_path)
 
-    model = dac.DAC.load(args.model_path, strict=True)
+    outpath_in = os.path.join(args.model_path, "audios/input")
+    outpath_out = os.path.join(args.model_path, "audios/output")
+    os.makedirs(outpath_in, exist_ok=True)
+    os.makedirs(outpath_out, exist_ok=True)
+    conf_file = '/'.join(args.model_path.split('/')[:-1]) + '/conf.yaml'
+        
+    model = dac.DAC.load(os.path.join(args.model_path, 'dac/weights.pth'), strict=True, **get_model_args(conf_file))
     model.eval()
     model.to("cuda")
 
-    dataset = pd.read_csv(args.dataset)
-    entropies, snrs = dict(core=[], mb=[]), dict(band=[], full=[])
+    dataset = pd.read_csv(args.dataset)[:1000]
+    #dataset = dataset.sample(n=1000, random_state=0)
+    all_codes, snrs, fnames = dict(core=[], mb=[]), dict(core=[], mb=[]), []
     
-    resampler = julius.SplitBands(24_000, cutoffs=[3000, 6000]).to('cuda')
-    duration = 5.0
-    num_codebook = [24, 2]
+    resampler = julius.SplitBands(24_000, cutoffs=[3000]).to('cuda')
+    duration = 10.0
+    num_codebook = [24, 4]
     for i, row in tqdm(dataset.iterrows(), total=len(dataset)):
-        fname = os.path.basename(row.path).split('.')[0]
-        # Load audio signal file
-        signal = AudioSignal(row.path, duration=duration)
+        audio = AudioSignal(row.path)
+        if audio.shape[-1] < duration * 24_000:
+            print('Audio shorter that duration, skipping!')
+            continue
 
-        signal.to(model.device)
+        signals = get_chunks(audio, duration, 24_000)
+        signals = AudioSignal.batch(signals, pad_signals=True)
+        for j, signal in enumerate(signals):
+            signal.to(model.device)
+            fname = os.path.basename(row.path).split('.')[0] + f'_chunk_{j}'
+            fnames.append(fname)
 
-        out = model.forward(signal.audio_data, n_quantizers=num_codebook)
-        y_blind = model.decode(out['z'])
-        y_band, mb_codes, core_codes = out['audio'], out['codes'], out['core_codes']
-        entropies['core'].append(compute_entropy(core_codes.squeeze(0).detach().cpu().numpy(), M=num_codebook[0], frame_rate=75))
-        entropies['mb'].append(compute_entropy(mb_codes.squeeze(0).detach().cpu().numpy(), M=num_codebook[1]))
-        
-        signal_band = resampler(signal.audio_data)[1:].sum(0)
-        y_band = y_band.reshape(1, 1, -1).to('cuda')
-        signal_band = signal_band.reshape(1, 1, -1).to('cuda')
-        
-        # also reconstruct the multiband signal
-        mb_rec = (resampler(y_blind)[0] + y_band).to('cpu').detach()
+            out = model.forward(signal.audio_data, n_quantizers=num_codebook)
+            y_blind = model.decode(out['z'])
+            mb_band, codes = out['audio'], dict(mb=out['codes'], core=out['core_codes'])
+            y_bands = dict(mb=y_blind, core=mb_band)
 
-        y_blind, signal = y_blind.to('cpu').detach(), signal.audio_data.to('cpu').detach()
-        y_band, signal_band = y_band.to('cpu').detach(), signal_band.to('cpu').detach()
-        snrs['full'].append(ScaleInvariantSignalNoiseRatio().to("cpu")(y_blind, signal))
-        snrs['band'].append(ScaleInvariantSignalNoiseRatio().to("cpu")(y_band, signal_band))
-        
-        
-        sf.write(
-            os.path.join(args.output_path, f"{fname}_full_input.wav"),
-            signal.reshape(-1).numpy(),
-            samplerate=24_000,
-        )
-        sf.write(
-            os.path.join(args.output_path, f"{fname}_full_output.wav"),
-            y_blind.reshape(-1).numpy(),
-            samplerate=24_000,
-        )
-        # sf.write(
-        #     os.path.join(args.output_path, f"{fname}_band_input.wav"),
-        #     signal_band.reshape(-1).numpy(),
-        #     samplerate=24_000,
-        # )
-        # sf.write(
-        #     os.path.join(args.output_path, f"{fname}_band_output.wav"),
-        #     y_band.reshape(-1).numpy(),
-        #     samplerate=24_000,
-        # )
-        sf.write(
-            os.path.join(args.output_path, f"{fname}_mb_rec.wav"),
-            mb_rec.reshape(-1).numpy(),
-            samplerate=24_000,
-        )
-        
-        del out
+            for k, c in codes.items(): # k, [B, CB, T]
+                nc, fr = c.shape[1], int(c.shape[-1] // duration)
+                all_codes[k].append(c.squeeze(0).detach().cpu().numpy())
+            
+            signal_bands = resampler(signal.audio_data)
+            
+            mb_rec = np.zeros(signal.audio_data.shape)
+            for i, ((k, y_band), signal_band) in enumerate(zip(y_bands.items(), signal_bands)):
+                y_band = resampler(y_band)[i]
+                y_band = y_band.reshape(1, 1, -1).to('cuda')
+                signal_band = signal_band.reshape(1, 1, -1).to('cuda')
+                snrs[k].append(ScaleInvariantSignalNoiseRatio().to("cuda")(y_band, signal_band).detach().cpu().item())
+                
+                mb_rec = mb_rec + y_band.cpu().detach().numpy()
+                del y_band
+            
+            # for k, y_band in y_bands.items():
+            #     sf.write(
+            #         os.path.join(outpath, f"{fname}_{k}.wav"),
+            #         y_band.reshape(-1).cpu().detach().numpy(),
+            #         samplerate=24_000,
+            #     )
+            sf.write(
+                os.path.join(outpath_in, f"{fname}.wav"),
+                signal.audio_data.reshape(-1).cpu().detach().numpy(),
+                samplerate=24_000,
+            )
+            sf.write(
+                os.path.join(outpath_out, f"{fname}.wav"),
+                mb_rec.reshape(-1),
+                samplerate=24_000,
+            )
+
+            for k in list(codes.keys()):  # Convert to list to avoid runtime errors
+                codes[k] = codes[k].detach().cpu()
+            del codes
+
+            for k in list(y_bands.keys()):
+                y_bands[k] = y_bands[k].detach().cpu()
+            del y_bands
+            torch.cuda.empty_cache()
+            gc.collect()
     
-    for k, entropies in entropies.items():
-        br_per_cb = np.array(entropies).mean(0)
+    bitrates = dict()
+    for k, v in all_codes.items():
+        fr = v[0].shape[-1] // duration
+        codes = np.concatenate(v, -1)
+        bitrates[k] = compute_entropy(codes, N=1024, M=codes.shape[0], frame_rate=fr)
+        
+    results_to_csv(fnames, bitrates, snrs, path=os.path.join(args.model_path, 'results.csv'))
+    tot_ent = 0.0
+    for k, bitrates in bitrates.items():
+        br_per_cb = np.array(bitrates)
         print(f'Codebook Entropy for {k}: {np.round(br_per_cb, 1)}')
-        print(f'Overall Entropy for {k}: {np.round(br_per_cb.sum(), 1)}')
+        print(f'Overall Entropy for {k}: {np.round(br_per_cb.sum())}')
+        tot_ent += br_per_cb.sum()
+    print(f'Overall Total Entropy: {np.round(tot_ent, 1)}')
     for k, v in snrs.items():
         print(f'Overall SNR for {k}: {np.round(np.mean(v), 1)}')
 
@@ -143,19 +211,19 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/datasets/fma_test_subset.csv",
+        default="/N/slate/daripete/jstsp-dac/datasets/fma_test.csv",
         required=False,
     )
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs/midband_cb2_4096_cb24/latest/dac/weights.pth",
+        default="/N/slate/daripete/jstsp-dac/runs2/mb_24cb/300k",
         required=False,
     )
     parser.add_argument(
         "--output-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs/midband_cb2_4096_cb24/latest/audios",
+        default=None,
         required=False,
     )
     args = parser.parse_args()
