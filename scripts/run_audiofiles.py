@@ -111,8 +111,8 @@ def main(args):
     dataset = dataset.sort_values(by='path')[:1000]
     all_codes, snrs, fnames = [], [], []
 
-    duration = 6.0
-    num_codebook = [32, 1]
+    duration = 10.0
+    num_codebook = [29, 1]
     for i, row in tqdm(dataset.iterrows(), total=len(dataset)):
         audio = AudioSignal(row.path, duration=30.)
         if audio.shape[-1] < duration * 24_000:
@@ -175,7 +175,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs2/baseline_32cb/300k",
+        default="/N/slate/daripete/jstsp-dac/runs2/baseline_29cb/300k",
         required=False,
     )
     parser.add_argument(
