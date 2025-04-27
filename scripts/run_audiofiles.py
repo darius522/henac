@@ -109,8 +109,8 @@ def get_model_args(conf_path):
 
 def main(args):
 
-    outpath_in = os.path.join(args.model_path, "audios/input")
-    outpath_out = os.path.join(args.model_path, "audios/output")
+    outpath_in = os.path.join(args.model_path, "audios/input_10sec_2")
+    outpath_out = os.path.join(args.model_path, "audios/output_10sec_2")
     os.makedirs(outpath_in, exist_ok=True)
     os.makedirs(outpath_out, exist_ok=True)
     conf_file = '/'.join(args.model_path.split('/')[:-1]) + '/conf.yaml'
@@ -125,7 +125,7 @@ def main(args):
     
     resampler = julius.SplitBands(24_000, cutoffs=[3000]).to('cuda')
     duration = 10.0
-    num_codebook = [24, 4]
+    num_codebook = [24, 2]
     for i, row in tqdm(dataset.iterrows(), total=len(dataset)):
         audio = AudioSignal(row.path)
         if audio.shape[-1] < duration * 24_000:
@@ -139,10 +139,11 @@ def main(args):
             fname = os.path.basename(row.path).split('.')[0] + f'_chunk_{j}'
             fnames.append(fname)
 
-            out = model.forward(signal.audio_data, n_quantizers=num_codebook)
-            y_blind = model.decode(out['z'])
-            mb_band, codes = out['audio'], dict(mb=out['codes'], core=out['core_codes'])
-            y_bands = dict(mb=y_blind, core=mb_band)
+            with torch.no_grad():
+                out = model.forward(signal.audio_data, n_quantizers=num_codebook)
+                y_blind = model.decode(out['z'])
+                mb_band, codes = out['audio'], dict(mb=out['codes'], core=out['core_codes'])
+                y_bands = dict(mb=y_blind, core=mb_band)
 
             for k, c in codes.items(): # k, [B, CB, T]
                 nc, fr = c.shape[1], int(c.shape[-1] // duration)
