@@ -126,10 +126,17 @@ class MergerDecoderBlock(nn.Module):
             output_padding=(stride % 2) if stride > 1 else 0,
         ))
         
-    def forward(self, x_skip, x_blind):
+    def forward(self, x_skip, x_blind, n_quantizers):
         mn = min(x_skip.shape[-1], x_blind.shape[-1])
-        return self.blind(x_blind[..., :mn]) + self.skip(x_skip[..., :mn])
-
+        if all(n_quantizers):
+            #print('merging witnh n_quantizers', n_quantizers)
+            return self.blind(x_blind[..., :mn]) + self.skip(x_skip[..., :mn])
+        elif n_quantizers[0] and not n_quantizers[1]:
+            #print('blind witnh n_quantizers', n_quantizers)
+            return self.blind(x_blind[..., :mn])
+        else:
+            #print('skip witnh n_quantizers', n_quantizers)
+            return self.skip(x_skip[..., :mn])
 
 class DecoderBlock(nn.Module):
     def __init__(self, input_dim: int = 16, output_dim: int = 8, stride: int = 1, merger_block: bool = False):
@@ -156,9 +163,9 @@ class DecoderBlock(nn.Module):
             ResidualUnit(output_dim, dilation=9),
         )
 
-    def forward(self, x, x_blind=None):
+    def forward(self, x, x_blind=None, n_quantizers=None):
         if x_blind is not None and isinstance(self.t_conv, MergerDecoderBlock):
-            x = self.t_conv(x, x_blind)
+            x = self.t_conv(x, x_blind, n_quantizers)
         else:
             x = self.t_conv(x)
         return self.block(x)
@@ -198,10 +205,10 @@ class Decoder(nn.Module):
 
         self.model = nn.Sequential(*layers)
 
-    def forward(self, x, blind_level=None, x_blind=None):
+    def forward(self, x, blind_level=None, x_blind=None, n_quantizers=None):
         for i, m in enumerate(self.model):
             if isinstance(m, DecoderBlock) and x_blind is not None:
-                x = m(x, x_blind)
+                x = m(x, x_blind, n_quantizers)
                 x_blind = None
             else:
                 x = m(x)
@@ -335,13 +342,13 @@ class DAC(BaseModel, CodecMixin):
         """
         z_main, skip_feat = self.encoder(audio_data)
         z_main, core_codes, _, _, _, _ = self.quantizer(
-            z_main, n_quantizers=n_quantizers[0], step=step
+            z_main, n_quantizers=None, step=step
         )
         skip_out_mb = self.skip_aes[0](
-            skip_feat[1], n_quantizers=n_quantizers[1], step=step
+            skip_feat[1], n_quantizers=None, step=step
         )
         skip_out_hb = self.skip_aes[1](
-            skip_feat[2], n_quantizers=n_quantizers[2], step=step
+            skip_feat[2], n_quantizers=None, step=step
         )
         commitment_loss, codebook_loss, entropy_loss = (
             skip_out_hb["vq/commitment_loss"],
@@ -361,7 +368,7 @@ class DAC(BaseModel, CodecMixin):
         }
         return feats, codes, losses
 
-    def decode(self, z: torch.Tensor, blind_level: int | None = None):
+    def decode(self, z: torch.Tensor, blind_level: int | None = None, n_quantizers: list = [None, None, None]):
         """Decode given latent codes and return audio data
 
         Parameters
@@ -378,7 +385,7 @@ class DAC(BaseModel, CodecMixin):
             "audio" : Tensor[B x 1 x length]
                 Decoded audio data.
         """
-        return self.decoder(z, blind_level)
+        return self.decoder(z, blind_level, n_quantizers=n_quantizers)
 
     def autoencode_skips(self, skips: List, return_output: bool = False, **args):
         outputs = [ae(skip, **args) for skip, ae in zip(skips, self.skip_aes)]
@@ -453,7 +460,7 @@ class DAC(BaseModel, CodecMixin):
         self,
         audio_data: torch.Tensor,
         sample_rate: int = None,
-        n_quantizers: list = [None, None, None],
+        n_quantizers: list = [None, None],
         step: int = None,
     ):
         length = audio_data.shape[-1]
@@ -463,15 +470,15 @@ class DAC(BaseModel, CodecMixin):
         )
         
         # coreband
-        xcore = self.decode(feats['core'], blind_level=None)
+        xcore = self.decode(feats['core'], blind_level=None, n_quantizers=None)
 
         # midband
-        xcore_blind = self.decode(feats['core'], blind_level=0)
-        xmb = self.multidecoders[0](feats['mb'], blind_level=None, x_blind=xcore_blind)
+        xcore_blind = self.decode(feats['core'], blind_level=0, n_quantizers=None)
+        xmb = self.multidecoders[0](feats['mb'], blind_level=None, x_blind=xcore_blind, n_quantizers=n_quantizers[0])
         
         # highband
-        xmb_blind = self.multidecoders[0](feats['mb'], blind_level=0, x_blind=xcore_blind)
-        xhb = self.multidecoders[1](feats['hb'], blind_level=None, x_blind=xmb_blind)
+        xmb_blind = self.multidecoders[0](feats['mb'], blind_level=0, x_blind=xcore_blind, n_quantizers=n_quantizers[0])
+        xhb = self.multidecoders[1](feats['hb'], blind_level=None, x_blind=xmb_blind, n_quantizers=n_quantizers[1])
         
         return {
             "audio": {'core': xcore, 'mb': xmb, 'hb': xhb},
