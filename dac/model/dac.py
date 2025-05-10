@@ -479,10 +479,10 @@ class DAC(BaseModel, CodecMixin):
         # highband
         xmb_blind = self.multidecoders[0](feats['mb'], blind_level=0, x_blind=xcore_blind, n_quantizers=n_quantizers[0])
         xhb = self.multidecoders[1](feats['hb'], blind_level=None, x_blind=xmb_blind, n_quantizers=n_quantizers[1])
-        
         return {
             "audio": {'core': xcore, 'mb': xmb, 'hb': xhb},
             "codes": codes,
+            "feats": feats,
         }
 
 

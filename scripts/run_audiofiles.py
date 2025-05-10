@@ -24,6 +24,8 @@ import julius
 
 import gc
 
+from plots.latent_distribution import plot_band_latents
+
 def compute_entropy(code_tensor, N=1024, M=4, frame_rate=500):
     """
     Calculate the entropy-based bitrate of an RVQ-based neural audio codec.
@@ -112,18 +114,18 @@ def get_model_args(conf_path):
 def main(args):
 
     num_codebooks = [
-        #[True, False], [True, False], # 18, 0, 0
-        [[True, True], [True, False]], # 18, 2, 0
-        [[True, True], [True, True]], # 18, 2, 2
-        [[False, True], [True, True]], # 0, 2, 2
+        #[[True, False], [True, False]], # 18, 0, 0
+        # [[True, True], [True, False]], # 18, 2, 0
+        # [[True, True], [True, True]], # 18, 2, 2
+        # [[False, True], [True, True]], # 0, 2, 2
         [[True, True], [False, True]], # 0, 0, 2
-        [[True, False], [False, True]], # 18, 0, 2
+        # [[True, False], [False, True]], # 18, 0, 2
         ]
     
     for num_codebook in tqdm(num_codebooks):
         print(f'Running for config: {num_codebook}')
-        outpath_in = os.path.join(args.model_path, f"audios/input_{num_codebook}")
-        outpath_out = os.path.join(args.model_path, f"audios/output_{num_codebook}")
+        outpath_in = os.path.join(args.model_path, f"audios_subset/input_{num_codebook}")
+        outpath_out = os.path.join(args.model_path, f"audios_subset/output_{num_codebook}")
         os.makedirs(outpath_in, exist_ok=True)
         os.makedirs(outpath_out, exist_ok=True)
         conf_file = '/'.join(args.model_path.split('/')[:-1]) + '/conf.yaml'
@@ -131,10 +133,24 @@ def main(args):
         model = dac.DAC.load(os.path.join(args.model_path, 'dac/weights.pth'), strict=True, **get_model_args(conf_file))
         model.eval()
         model.to("cuda")
+        
+        def count_parameters(model):
+            return sum(p.numel() for p in model.parameters())
+
+        # Or to count only trainable parameters:
+        def count_trainable_parameters(model):
+            return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+        # Example usage:
+        print("Total parameters:", count_parameters(model) / 1e6)
+        print("Trainable parameters:", count_trainable_parameters(model) / 1e6)
+        
+        import pdb; pdb.set_trace()
+
 
         dataset = pd.read_csv(args.dataset)[:1000]
         #dataset = dataset.sample(n=1000, random_state=0)
-        all_codes, snrs, fnames = dict(core=[], mb=[], hb=[]), dict(core=[], mb=[], hb=[]), []
+        all_feats, all_codes, snrs, fnames = dict(core=[], mb=[], hb=[]), dict(core=[], mb=[], hb=[]), dict(core=[], mb=[], hb=[]), []
         
         resampler = julius.SplitBands(24_000, cutoffs=[3000, 6000]).to('cuda')
         duration = 10.0
@@ -153,11 +169,14 @@ def main(args):
 
                 with torch.no_grad():
                     out = model.infer_bands(signal.audio_data, n_quantizers=num_codebook)
-                    y_bands, codes = out['audio'], out['codes']
+                    y_bands, codes, feats = out['audio'], out['codes'], out['feats']
             
                 for k, c in codes.items(): # k, [B, CB, T]
                     nc, fr = c.shape[1], int(c.shape[-1] // duration)
                     all_codes[k].append(c.squeeze(0).detach().cpu().numpy())
+
+                for k, c in feats.items(): # k, [B, CB, T]
+                    all_feats[k].append(c.squeeze(0).detach().cpu().numpy())
                 
                 signal_bands = resampler(signal.audio_data)
                 
@@ -197,6 +216,11 @@ def main(args):
                 del y_bands
                 torch.cuda.empty_cache()
                 gc.collect()
+                
+        for k, v in all_feats.items():
+            all_feats[k] = np.concatenate(v, -1)
+        
+        plot_band_latents(feats, projection='umap')
         
         bitrates = dict()
         for k, v in all_codes.items():
@@ -222,7 +246,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/datasets/fma_test.csv",
+        default="/N/slate/daripete/jstsp-dac/datasets/fma_mushra.csv",
         required=False,
     )
     parser.add_argument(
