@@ -3,7 +3,7 @@ from collections import defaultdict
 import math
 
 # Load JSON from file
-with open('/N/slate/daripete/jstsp-dac/scripts/mushra_scores.json', 'r') as f:
+with open('/N/slate/daripete/jstsp-dac/scripts/mushra.json', 'r') as f:
     data = json.load(f)
 
 # Containers

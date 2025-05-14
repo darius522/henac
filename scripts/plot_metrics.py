@@ -1,9 +1,24 @@
-#%%
+# %%
 import numpy as np
 from matplotlib import pyplot as plt
 import matplotlib
 import json
 import seaborn as sns
+
+trial_colors = {
+    "trial1": "#b00303",
+    "trial2": "#000000",
+    "trial3": "#000000",
+    "trial4": "#b00303",
+    "trial5": "#000000",
+    "trial6": "#b00303",
+    "trial7": "#000000",
+    "trial8": "#b00303",
+    "trial9": "#000000",
+    "trial10": "#b00303",
+    "trial11": "#000000",
+    "trial12": "#b00303",
+}
 
 
 pretty_names = {'C1':r"$\text{DAC}_{(29)}$",
@@ -27,8 +42,11 @@ def plotBoxMetrics(results, plotTitle=''):
 	names = ['reference','C4','C3','C2','C1','anchor35']
 	xs     = []
 	vals   = []
+	colors = []
 	for i, name in enumerate(names):
-		vals.append(np.asarray(results[name],dtype=int))
+		val, col = [o[0] for o in results[name]], [o[1] for o in results[name]]
+		vals.append(np.asarray(val,dtype=int))
+		colors.append(np.asarray(col))
 		xs.append(np.random.normal(i + 1, 0.04, len(results[name])))
 
 	#convert names
@@ -55,7 +73,14 @@ def plotBoxMetrics(results, plotTitle=''):
 		showfliers=True,
   		patch_artist=True, 
     	zorder=1) 
- 
+
+	# Apply individual colors to each box
+	count = 0
+	import pdb; pdb.set_trace()
+	for patch, color in zip(bb['fliers'], colors):
+		count += 1
+		#patch.set_facecolor(color)
+	print(count)
 	p1 = np.array(sns.color_palette("Greens_r", 10))[2:5,...]
 	p2 = np.array(sns.color_palette("Blues_r", 10))[2:5,...]
 	palette = np.concatenate([p1,p2])
@@ -64,7 +89,7 @@ def plotBoxMetrics(results, plotTitle=''):
 	# for patch, color in zip(bb['boxes'][2:-1], palette):
 	# 	patch.set_facecolor(color)
 	# 	patch.get_text()
-
+ 
 	for i, (x, val) in enumerate(zip(xs, vals)):
 		low = np.quantile(val,0.25)
 		high  = np.quantile(val,0.75)
@@ -92,7 +117,7 @@ def plot_mushra():
 		all_trials = json.loads(data[p_id])['trials']
 		for trials in all_trials: 
 			for trial in trials['responses']:
-				results[trial['stimulus']].append(trial['score'])
+				results[trial['stimulus']].append((trial['score'], trial_colors[trials['id']]))
 	plotBoxMetrics(results)
 
 plot_mushra()
