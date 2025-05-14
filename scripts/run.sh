@@ -7,7 +7,7 @@
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=daripete@iu.edu
 #SBATCH --cpus-per-task=128
-#SBATCH --time=48:00:00
+#SBATCH --time=10:00:00
 #SBATCH --mem=40G
 #SBATCH -A r00105
 

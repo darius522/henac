@@ -11,6 +11,7 @@ from audiotools import metrics
 from audiotools.core import util
 from audiotools.ml.decorators import Tracker
 from train import losses
+from tqdm import tqdm
 
 import julius
 
@@ -26,27 +27,39 @@ class State:
 def get_metrics(signal_path, recons_path, state):
     output = {}
     bands = [3000, 6000]
-    signal = AudioSignal(signal_path)
-    recons = AudioSignal(recons_path)
-    sp = julius.SplitBands(24_000, cutoffs=bands).to('cpu')
-    xb, yb = sp(signal.audio_data.clone()), sp(recons.audio_data.clone())
-    xb, yb = torch.concatenate([xb, signal.audio_data[None]]), torch.concatenate([yb, recons.audio_data[None]])
-    for x, y, k in zip(xb, yb, bands + [12000, 'full']):
-        k = str(k)
-        x = AudioSignal(x, signal.sample_rate)
-        y = AudioSignal(y, signal.sample_rate)
+    signal = AudioSignal(signal_path).to("cuda")
+    recons = AudioSignal(recons_path).to("cuda")
+    # sp = julius.SplitBands(24_000, cutoffs=bands).to('cpu')
+    # xb, yb = sp(signal.audio_data.clone()), sp(recons.audio_data.clone())
+    # xb, yb = torch.concatenate([xb, signal.audio_data[None]]), torch.concatenate([yb, recons.audio_data[None]])
+    # for x, y, k in zip(xb, yb, bands + [12000, 'full']):
+    k = 'full'
+    k = str(k)
+    x = signal#AudioSignal(x, signal.sample_rate)
+    y = recons#AudioSignal(y, signal.sample_rate)
+    if k == 'full':
         output.update(
             {
                 f"mel-{k}": state.mel_loss(x, y),
                 f"stft-{k}": state.stft_loss(x, y),
-                f"waveform-{k}": state.waveform_loss(x, y),
+                #f"waveform-{k}": state.waveform_loss(x, y),
                 f"sisdr-{k}": state.sisdr_loss(x, y),
-                f"visqol-audio-{k}": metrics.quality.visqol(x, y),
+                # f"visqol-audio-{k}": metrics.quality.visqol(x, y),
                 #f"visqol-speech-{k}": metrics.quality.visqol(x, y, "speech"),
             }
         )
-        output["path"] = signal.path_to_file
-        output.update(signal.metadata)
+    else:
+        output.update(
+            {
+                f"mel-{k}": state.mel_loss(x, y),
+                f"stft-{k}": state.stft_loss(x, y),
+                #f"waveform-{k}": state.waveform_loss(x, y),
+                f"sisdr-{k}": state.sisdr_loss(x, y),
+                #f"visqol-speech-{k}": metrics.quality.visqol(x, y, "speech"),
+            }
+        )
+    output["path"] = signal.path_to_file
+    output.update(signal.metadata)
     return output
 
 
@@ -55,7 +68,7 @@ def get_metrics(signal_path, recons_path, state):
 def evaluate(
     input: str = "/N/slate/daripete/jstsp-dac/runs2/baseline_29cb/300k/audios/input",
     output: str = "/N/slate/daripete/jstsp-dac/runs2/baseline_29cb/300k/audios/output",
-    n_proc: int = 100,
+    n_proc: int = 50,
 ):
     tracker = Tracker()
 
@@ -75,9 +88,9 @@ def evaluate(
     output = Path(output)
     output.mkdir(parents=True, exist_ok=True)
     
-    @tracker.track("metrics", len(audio_files))
+    # @tracker.track("metrics", len(audio_files))
     def record(future, writer):
-        o = future.result()
+        o = future#.result()
         for k, v in o.items():
             if torch.is_tensor(v):
                 o[k] = v.item()
@@ -86,23 +99,18 @@ def evaluate(
         return o
 
     futures = []
-    with tracker.live:
-        with open(output / "metrics_all.csv", "w") as csvfile:
-            with ProcessPoolExecutor(n_proc, mp.get_context("fork")) as pool:
-                for i in range(len(audio_files)):
-                    future = pool.submit(
-                        get_metrics, audio_files[i], output / audio_files[i].name, state
-                    )
-                    futures.append(future)
+    # with tracker.live:
+    with open(output / "metrics_all.csv", "w") as csvfile:
+        for i in tqdm(range(len(audio_files))):
+            future = get_metrics(audio_files[i], output / audio_files[i].name, state)
+            futures.append(future)
 
-                keys = list(futures[0].result().keys())
-                writer = csv.DictWriter(csvfile, fieldnames=keys)
-                writer.writeheader()
+        keys = list(futures[0].keys())
+        writer = csv.DictWriter(csvfile, fieldnames=keys)
+        writer.writeheader()
 
-                for future in futures:
-                    record(future, writer)
-
-        tracker.done("test", f"N={len(audio_files)}")
+        for future in futures:
+            record(future, writer)
 
 
 if __name__ == "__main__":

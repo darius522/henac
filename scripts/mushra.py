@@ -1,104 +1,68 @@
-import string
-from dataclasses import dataclass
-from pathlib import Path
-from typing import List
+import json
+from collections import defaultdict
+import math
 
-import argbind
-import gradio as gr
-from audiotools import preference as pr
+# Load JSON from file
+with open('/N/slate/daripete/jstsp-dac/scripts/mushra_scores.json', 'r') as f:
+    data = json.load(f)
 
+# Containers
+system_scores = defaultdict(list)
+discarded_keys = []
+kept_keys = []
 
-@argbind.bind(without_prefix=True)
-@dataclass
-class Config:
-    folder: str = None
-    save_path: str = "results.csv"
-    conditions: List[str] = None
-    reference: str = None
-    seed: int = 0
-    share: bool = False
-    n_samples: int = 10
+for participant_key, participant_json in data.items():
+    participant_data = json.loads(participant_json)
+    trials = participant_data.get('trials', [])
 
+    # Count how many times 'reference' was rated < 90
+    reference_low_count = 0
+    for trial in trials:
+        for response in trial.get('responses', []):
+            if response['stimulus'] == 'reference' and float(response['score']) < 90:
+                reference_low_count += 1
 
-def get_text(wav_file: str):
-    txt_file = Path(wav_file).with_suffix(".txt")
-    if Path(txt_file).exists():
-        with open(txt_file, "r") as f:
-            txt = f.read()
-    else:
-        txt = ""
-    return f"""<div style="text-align:center;font-size:large;">{txt}</div>"""
+    if reference_low_count >= 2:
+        discarded_keys.append(participant_data['participant']['response'][0]+f', missed {reference_low_count} times')
+        continue  # Skip this participant's data
 
+    kept_keys.append(participant_data['participant']['response'][0])
 
-def main(config: Config):
-    with gr.Blocks() as app:
-        save_path = config.save_path
-        samples = gr.State(pr.Samples(config.folder, n_samples=config.n_samples))
+    # Accumulate scores
+    for trial in trials:
+        for response in trial.get('responses', []):
+            stimulus = response['stimulus']
+            score = float(response['score'])
+            system_scores[stimulus].append(score)
 
-        reference = config.reference
-        conditions = config.conditions
+# Compute mean and standard deviation per system
+system_stats = {}
+for system, scores in system_scores.items():
+    n = len(scores)
+    mean = sum(scores) / n
+    variance = sum((x - mean) ** 2 for x in scores) / n
+    std_dev = math.sqrt(variance)
+    system_stats[system] = (mean, std_dev)
 
-        player = pr.Player(app)
-        player.create()
-        if reference is not None:
-            player.add("Play Reference")
+# Compute mean and standard deviation per system
+system_stats = {}
+for system, scores in system_scores.items():
+    n = len(scores)
+    mean = sum(scores) / n
+    variance = sum((x - mean) ** 2 for x in scores) / n
+    std_dev = math.sqrt(variance)
+    system_stats[system] = (mean, std_dev)
 
-        user = pr.create_tracker(app)
-        ratings = []
+# Print results
+print("System-wise average and standard deviation:")
+for system, (avg, std) in sorted(system_stats.items()):
+    print(f"{system}: mean = {avg:.2f}, std = {std:.2f}")
 
-        with gr.Row():
-            txt = gr.HTML("")
+# Print participant filtering report
+print("\nKept participant keys (reference rated <90 less than twice):")
+for key in kept_keys:
+    print(f"- {key}")
 
-        with gr.Row():
-            gr.Button("Rate audio quality", interactive=False)
-            with gr.Column(scale=8):
-                gr.HTML(pr.slider_mushra)
-
-        for i in range(len(conditions)):
-            with gr.Row().style(equal_height=True):
-                x = string.ascii_uppercase[i]
-                player.add(f"Play {x}")
-                with gr.Column(scale=9):
-                    ratings.append(gr.Slider(value=50, interactive=True))
-
-        def build(user, samples, *ratings):
-            # Filter out samples user has done already, by looking in the CSV.
-            samples.filter_completed(user, save_path)
-
-            # Write results to CSV
-            if samples.current > 0:
-                start_idx = 1 if reference is not None else 0
-                name = samples.names[samples.current - 1]
-                result = {"sample": name, "user": user}
-                for k, r in zip(samples.order[start_idx:], ratings):
-                    result[k] = r
-                pr.save_result(result, save_path)
-
-            updates, done, pbar = samples.get_next_sample(reference, conditions)
-            wav_file = updates[0]["value"]
-
-            txt_update = gr.update(value=get_text(wav_file))
-
-            return (
-                updates
-                + [gr.update(value=50) for _ in ratings]
-                + [done, samples, pbar, txt_update]
-            )
-
-        progress = gr.HTML()
-        begin = gr.Button("Submit", elem_id="start-survey")
-        begin.click(
-            fn=build,
-            inputs=[user, samples] + ratings,
-            outputs=player.to_list() + ratings + [begin, samples, progress, txt],
-        ).then(None, _js=pr.reset_player)
-
-        # Comment this back in to actually launch the script.
-        app.launch(share=config.share)
-
-
-if __name__ == "__main__":
-    args = argbind.parse_args()
-    with argbind.scope(args):
-        config = Config()
-        main(config)
+print("\nDiscarded participant keys (reference rated <90 at least twice):")
+for key in discarded_keys:
+    print(f"- {key}")

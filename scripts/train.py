@@ -167,6 +167,17 @@ def load(
 
     generator = accel.prepare_model(generator, find_unused_parameters=True)
     discriminator = accel.prepare_model(discriminator, find_unused_parameters=True)
+    
+    def count_parameters(generator):
+        return sum(p.numel() for p in generator.parameters())
+
+    # Or to count only trainable parameters:
+    def count_trainable_parameters(generator):
+        return sum(p.numel() for p in generator.parameters() if p.requires_grad)
+
+    # Example usage:
+    print("Total parameters:", count_parameters(generator) / 1e6)
+    print("Trainable parameters:", count_trainable_parameters(generator)/ 1e6)
 
     with argbind.scope(args, "generator"):
         optimizer_g = AdamW(generator.parameters(), use_zero=accel.use_ddp)
