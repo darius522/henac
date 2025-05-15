@@ -5,6 +5,8 @@ import matplotlib
 import json
 import seaborn as sns
 
+from matplotlib.patches import Patch
+
 trial_colors = {
     "trial1": "#b00303",
     "trial2": "#000000",
@@ -22,8 +24,8 @@ trial_colors = {
 
 
 pretty_names = {'C1':r"$\text{DAC}_{(29)}$",
-                'C2':r"$\text{Res-HARP}_{(24, 2)}$",
-                'C3':r"$\text{Res-HARP}_{(18, 2, 1)}$",
+                'C2':r"$\text{HE-NAC}_{(24, 2)}$",
+                'C3':r"$\text{HE-NAC}_{(18, 2, 1)}$",
                 'C4':r"$\mathbf{HE-AAC}$",
                 'reference':r"Hidden Ref.",
                 'anchor35':r"Anchor - 3.5kHz"}
@@ -38,7 +40,7 @@ def plotBoxMetrics(results, plotTitle=''):
 	matplotlib.rcParams['ps.fonttype'] = 42
 	matplotlib.rcParams['axes.unicode_minus'] = False
 
-	f = plt.figure(figsize=(18,9))
+	f = plt.figure(figsize=(12,10))
 	names = ['reference','C4','C3','C2','C1','anchor35']
 	xs     = []
 	vals   = []
@@ -61,7 +63,7 @@ def plotBoxMetrics(results, plotTitle=''):
 	medianprops = dict(linewidth=2.0, linestyle='-', color='#6e0101')
 	meanprops = dict(linewidth=2.0, linestyle='--', color='#017507')
 	bb = plt.boxplot(vals, labels=real_names,
-		notch=False, 
+		notch=True, 
 		boxprops=boxprops, 
 		whiskerprops=whiskerprops,
 		capprops=capprops, 
@@ -74,13 +76,7 @@ def plotBoxMetrics(results, plotTitle=''):
   		patch_artist=True, 
     	zorder=1) 
 
-	# Apply individual colors to each box
-	count = 0
-	import pdb; pdb.set_trace()
-	for patch, color in zip(bb['fliers'], colors):
-		count += 1
-		#patch.set_facecolor(color)
-	print(count)
+
 	p1 = np.array(sns.color_palette("Greens_r", 10))[2:5,...]
 	p2 = np.array(sns.color_palette("Blues_r", 10))[2:5,...]
 	palette = np.concatenate([p1,p2])
@@ -90,14 +86,21 @@ def plotBoxMetrics(results, plotTitle=''):
 	# 	patch.set_facecolor(color)
 	# 	patch.get_text()
  
-	for i, (x, val) in enumerate(zip(xs, vals)):
+	for i, (x, val, col) in enumerate(zip(xs, vals, colors)):
 		low = np.quantile(val,0.25)
 		high  = np.quantile(val,0.75)
 		val_n = val[(val > low) & (val < high)]
 		x_n = x[(val > low) & (val < high)]
+		col_n = col[(val > low) & (val < high)]
 		plt.scatter(x_n, val_n, alpha=0.7, color='black', zorder=10000)
 
-	#plt.show()
+	# # Manual legend
+	# legend_elements = [
+	# 	Patch(facecolor='#b00303', edgecolor='#b00303', label='HB-Prominent'),
+	# 	Patch(facecolor='#000000', edgecolor='#000000', label='Random')
+	# ]
+
+	# plt.legend(handles=legend_elements)
 	plt.ylabel('Subjective Score')
 	plt.xticks(np.arange(len(real_names))+1, real_names, rotation=45)
 	plt.tight_layout()
@@ -117,7 +120,7 @@ def plot_mushra():
 		all_trials = json.loads(data[p_id])['trials']
 		for trials in all_trials: 
 			for trial in trials['responses']:
-				results[trial['stimulus']].append((trial['score'], trial_colors[trials['id']]))
+					results[trial['stimulus']].append((trial['score'], trial_colors[trials['id']]))
 	plotBoxMetrics(results)
 
 plot_mushra()
