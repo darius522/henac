@@ -28,7 +28,7 @@ def plot_band_latents(bands, projection='tsne'):
         "hb": "mediumseagreen"
     }
     band_names = {'core': 'Core', 'mb': 'MB', 'hb': 'HB'}
-
+    priority = {"core": 3, "mb": 2, "hb": 1}
     plt.figure(figsize=(2.5, 4))
 
     for band_name, features in bands.items():
@@ -40,14 +40,14 @@ def plot_band_latents(bands, projection='tsne'):
         hist += 1e-12  # Avoid log(0) for entropy
         ent = entropy(hist, base=2)
 
-        sns.histplot(
+        sns.kdeplot(
             flat_vals,
-            bins=100,
-            kde=True,
-            stat="density",
+            bw_adjust=1,  # adjust bandwidth if needed
+            fill=True,    # fill the area under the KDE curve
             color=pastel_colors.get(band_name, "gray"),
-            alpha=0.5,
-            label=f"{band_names[band_name]} (H={ent:.2f})"
+            label=f"{band_names[band_name]} (H={ent:.2f})",
+            linewidth=1.5,  # optional: curve outline thickness
+            zorder=priority[band_name]  # Set zorder based on priority
         )
 
     # Move legend below the plot
