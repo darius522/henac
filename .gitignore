@@ -177,3 +177,6 @@ recon/
 recons/
 datasets/*.csv
 /visqol
+*.pdf
+*.png
+*.jpg

@@ -145,15 +145,13 @@ def main(args):
         print("Total parameters:", count_parameters(model) / 1e6)
         print("Trainable parameters:", count_trainable_parameters(model) / 1e6)
         
-        import pdb; pdb.set_trace()
-
 
         dataset = pd.read_csv(args.dataset)[:1000]
         #dataset = dataset.sample(n=1000, random_state=0)
         all_feats, all_codes, snrs, fnames = dict(core=[], mb=[], hb=[]), dict(core=[], mb=[], hb=[]), dict(core=[], mb=[], hb=[]), []
         
         resampler = julius.SplitBands(24_000, cutoffs=[3000, 6000]).to('cuda')
-        duration = 10.0
+        duration = 5.0
         for i, row in tqdm(dataset.iterrows(), total=len(dataset)):
             audio = AudioSignal(row.path)
             if audio.shape[-1] < duration * 24_000:
@@ -196,16 +194,16 @@ def main(args):
                 #         y_band.reshape(-1).cpu().detach().numpy(),
                 #         samplerate=24_000,
                 #     )
-                sf.write(
-                    os.path.join(outpath_in, f"{fname}.wav"),
-                    signal.audio_data.reshape(-1).cpu().detach().numpy(),
-                    samplerate=24_000,
-                )
-                sf.write(
-                    os.path.join(outpath_out, f"{fname}.wav"),
-                    mb_rec.reshape(-1),
-                    samplerate=24_000,
-                )
+                # sf.write(
+                #     os.path.join(outpath_in, f"{fname}.wav"),
+                #     signal.audio_data.reshape(-1).cpu().detach().numpy(),
+                #     samplerate=24_000,
+                # )
+                # sf.write(
+                #     os.path.join(outpath_out, f"{fname}.wav"),
+                #     mb_rec.reshape(-1),
+                #     samplerate=24_000,
+                # )
 
                 for k in list(codes.keys()):  # Convert to list to avoid runtime errors
                     codes[k] = codes[k].detach().cpu()

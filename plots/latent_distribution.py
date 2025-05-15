@@ -29,7 +29,7 @@ def plot_band_latents(bands, projection='tsne'):
     }
     band_names = {'core': 'Core', 'mb': 'MB', 'hb': 'HB'}
 
-    plt.figure(figsize=(8, 6))
+    plt.figure(figsize=(2.5, 4))
 
     for band_name, features in bands.items():
         features = features.detach().cpu().squeeze().numpy()
@@ -50,8 +50,15 @@ def plot_band_latents(bands, projection='tsne'):
             label=f"{band_names[band_name]} (H={ent:.2f})"
         )
 
-    plt.legend(title="Band Entropy")
-    plt.xlabel("Feature Value")
+    # Move legend below the plot
+    plt.legend(
+        title="Band Entropy",
+        loc="upper center",
+        bbox_to_anchor=(0.5, -0.1),
+        ncol=1,
+        frameon=False
+    )
+    # plt.xlabel("Feature Value")
     plt.ylabel("Density")
     plt.tight_layout()
     plt.savefig("/N/slate/daripete/jstsp-dac/plots/band_latents_histogram_combined.pdf", dpi=150)
