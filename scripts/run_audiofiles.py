@@ -24,7 +24,7 @@ import julius
 
 import gc
 
-from plots.latent_distribution import plot_band_latents
+from utils.latent_distribution import plot_band_latents
 
 def compute_entropy(code_tensor, N=1024, M=4, frame_rate=500):
     """

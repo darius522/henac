@@ -31,7 +31,7 @@ def get_metrics(signal_path, recons_path, state):
     sp = julius.SplitBands(24_000, cutoffs=bands)
     xb, yb = sp(signal.audio_data.clone()).sum(0), sp(recons.audio_data.clone()).sum(0)
     x, y = xb, yb
-    k = "6k-12k"
+    k = "full"
     # for x, y, k in zip(xb, yb, bands + [12000]):
     k = str(k)
     x = AudioSignal(x, signal.sample_rate)

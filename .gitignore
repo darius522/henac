@@ -180,3 +180,4 @@ datasets/*.csv
 *.pdf
 *.png
 *.jpg
+*.ttf
