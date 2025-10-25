@@ -5,15 +5,16 @@ import matplotlib.pyplot as plt
 import soundfile as sf
 
 # === USER CONFIGURATION ===
-ROOT_DIR = '/N/slate/daripete/jstsp-dac/datasets/mushra'  # <- Set your root folder here
-OUTPUT_DIR = '/N/slate/daripete/jstsp-dac/plots/appendix'
+ROOT_DIR = '/N/slate/daripete/jstsp-dac/datasets/ablations'  # <- Set your root folder here
+OUTPUT_DIR = '/N/slate/daripete/jstsp-dac/plots/appendix_ablations'
 SR = 24000
-MODELS = ['gt', 'a', 'std', 'b', 'c']  # Adjust as needed
-PRETTY_MODELS = {'a':r"DAC$_{(29)}$",
-                'b':r"HE-NAC$_{(24, 2)}$",
-                'c':r"HE-NAC$_{(18, 2, 1)}$",
-                'std':r"HE-AAC",
-                'gt':r"Reference"}
+MODELS = ['input', 'cb', 'cb_mb', 'cb_mb_hb']  # Adjust as needed
+PRETTY_MODELS = {
+    'input':'input',
+    'cb':'cb',
+    'cb_mb':'cb_mb',
+    'cb_mb_hb':'cb_mb_hb'
+}
 FREQS = [[6000,12000]]
 N_FFT = 1024
 HOP_LENGTH = 256
@@ -47,7 +48,7 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 def get_common_filenames():
     ref_folder = os.path.join(ROOT_DIR, MODELS[0])
     filenames = [f for f in os.listdir(ref_folder) if f.endswith('.wav')]
-    return sorted([f[len(MODELS[0]) + 1:] for f in filenames if f.startswith(MODELS[0] + "_")])
+    return sorted(filenames)
 
 def compute_log_spectrogram(y, fmin, fmax):
     S = np.abs(librosa.stft(y, n_fft=N_FFT, hop_length=HOP_LENGTH, win_length=N_FFT))
@@ -70,7 +71,7 @@ def plot_spectrogram_row(spectrograms, output_path, fmin=0, fmax=SR // 2):
     for idx, (ax, S, M) in enumerate(zip(axes, spectrograms, MODELS)):
         librosa.display.specshow(S, sr=SR, hop_length=HOP_LENGTH, x_axis='time', y_axis='linear', cmap=CMAP, ax=ax)
         # ax.axis('off')
-        ax.set_title(PRETTY_MODELS[M])  # Remove title for each subplot
+        # ax.set_title(PRETTY_MODELS[M])  # Remove title for each subplot
 
         # if idx == 0:
         #     # Get y-axis limits
@@ -112,15 +113,14 @@ def split_into_chunks(audio, num_chunks=4):
 
 def main():
     common_filenames = get_common_filenames()
-    
     for common_name in common_filenames:
         for freqs in FREQS:
-            for start, end in zip([0,2,4,6,8], [2,4,6,8,10]):
+            for start, end in zip([0,2], [2,4]):
                 plt.cla()
                 plt.clf()
                 spectrograms = []
                 for model in MODELS:
-                    full_filename = f"{model}_{common_name}"
+                    full_filename = f"{common_name}"
                     filepath = os.path.join(ROOT_DIR, model, full_filename)
                     y, sr = sf.read(filepath, start=start*SR, stop=end*SR)
                     if sr != SR:

@@ -40,7 +40,7 @@ def plotBoxMetrics(results, plotTitle=''):
 	matplotlib.rcParams['ps.fonttype'] = 42
 	matplotlib.rcParams['axes.unicode_minus'] = False
 
-	f = plt.figure(figsize=(10,11))
+	f = plt.figure(figsize=(16,10))
 	names = ['reference','C4','C3','C2','C1','anchor35']
 	xs     = []
 	vals   = []
@@ -102,7 +102,7 @@ def plotBoxMetrics(results, plotTitle=''):
 
 	# plt.legend(handles=legend_elements)
 	plt.ylabel('Subjective Score')
-	plt.xticks(np.arange(len(real_names))+1, real_names, rotation=90)
+	plt.xticks(np.arange(len(real_names))+1, real_names, rotation=45)
 	plt.tight_layout()
 	plt.savefig('/N/slate/daripete/jstsp-dac/plots/mushra.png')
 	plt.savefig('/N/slate/daripete/jstsp-dac/plots/mushra.pdf')

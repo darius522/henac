@@ -24,7 +24,7 @@ import julius
 
 import gc
 
-from utils.latent_distribution import plot_band_latents
+from utils.latent_distribution import plot_band_latents, plot_codebook_indices
 
 def compute_entropy(code_tensor, N=1024, M=4, frame_rate=500):
     """
@@ -118,7 +118,7 @@ def main(args):
         # [[True, True], [True, False]], # 18, 2, 0
         # [[True, True], [True, True]], # 18, 2, 2
         # [[False, True], [True, True]], # 0, 2, 2
-        [[True, True], [False, True]], # 0, 0, 2
+        [[True, True], [True, True]], # 0, 0, 2
         # [[True, False], [False, True]], # 18, 0, 2
         ]
     
@@ -146,7 +146,7 @@ def main(args):
         print("Trainable parameters:", count_trainable_parameters(model) / 1e6)
         
 
-        dataset = pd.read_csv(args.dataset)[:1000]
+        dataset = pd.read_csv(args.dataset)[:10]
         #dataset = dataset.sample(n=1000, random_state=0)
         all_feats, all_codes, snrs, fnames = dict(core=[], mb=[], hb=[]), dict(core=[], mb=[], hb=[]), dict(core=[], mb=[], hb=[]), []
         
@@ -168,7 +168,7 @@ def main(args):
                 with torch.no_grad():
                     out = model.infer_bands(signal.audio_data, n_quantizers=num_codebook)
                     y_bands, codes, feats = out['audio'], out['codes'], out['feats']
-            
+
                 for k, c in codes.items(): # k, [B, CB, T]
                     nc, fr = c.shape[1], int(c.shape[-1] // duration)
                     all_codes[k].append(c.squeeze(0).detach().cpu().numpy())
@@ -190,7 +190,7 @@ def main(args):
                 
                 # for k, y_band in y_bands.items():
                 #     sf.write(
-                #         os.path.join(outpath, f"{fname}_{k}.wav"),
+                #         os.path.join(args.output_path, f"{fname}_{k}.wav"),
                 #         y_band.reshape(-1).cpu().detach().numpy(),
                 #         samplerate=24_000,
                 #     )
@@ -214,10 +214,11 @@ def main(args):
                 del y_bands
                 torch.cuda.empty_cache()
                 gc.collect()
-                
+        
         for k, v in all_feats.items():
             all_feats[k] = np.concatenate(v, -1)
         
+        # plot_codebook_indices({k: np.concatenate(v, -1) for k, v in all_codes.items()})
         plot_band_latents(feats, projection='umap')
         
         bitrates = dict()
@@ -244,7 +245,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/datasets/fma_mushra.csv",
+        default="/N/slate/daripete/jstsp-dac/datasets/fma_test.csv",
         required=False,
     )
     parser.add_argument(

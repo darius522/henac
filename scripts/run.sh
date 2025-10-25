@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH -J eval
-#SBATCH -p gpu
+#SBATCH -p hopper
 #SBATCH -o /N/slate/daripete/jstsp-dac/logs/%j.out
 #SBATCH -e /N/slate/daripete/jstsp-dac/logs/%j.err
 #SBATCH --mail-type=ALL
@@ -18,4 +18,4 @@ conda activate /N/slate/daripete/anaconda3/envs/dac
 
 CODE_ROOT="$PWD"
 
-python scripts/evaluate.py --input "/N/slate/daripete/jstsp-dac/runs2/hb_18cb/300k/audios/input" --output "/N/slate/daripete/jstsp-dac/runs2/hb_18cb/300k/audios/output"
+python scripts/evaluate.py --input "/N/slate/daripete/jstsp-dac/runs2/baseline_29cb_medium/300k/audios/input" --output "/N/slate/daripete/jstsp-dac/runs2/baseline_29cb_medium/300k/audios/output"

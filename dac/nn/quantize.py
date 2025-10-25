@@ -204,10 +204,11 @@ class ResidualVectorQuantize(nn.Module):
             n_quantizers[:n_dropout] = dropout[:n_dropout]
             n_quantizers = n_quantizers.to(z.device)
 
+        residuals = []
         for i, quantizer in enumerate(self.quantizers):
             if self.training is False and i >= n_quantizers:
                 break
-
+            
             z_q_i, commitment_loss_i, codebook_loss_i, indices_i, z_e_i, entropy_loss_i = quantizer(
                 residual, step=step
             )
@@ -226,6 +227,27 @@ class ResidualVectorQuantize(nn.Module):
 
             codebook_indices.append(indices_i)
             latents.append(z_e_i)
+            # residuals.append(z_q_i.clone().detach().cpu().numpy())
+
+        # import matplotlib.pyplot as plt
+        # import seaborn as sns
+        # import numpy as np
+        # from random import randint
+
+        # # Assume `residuals` is a list of 18 arrays, each with flattened residual values
+        # # For example: residuals = [res_level_0, res_level_1, ..., res_level_17]
+
+        # fig, ax = plt.subplots(figsize=(14, 6))
+        # data = [r.flatten() for r in residuals]  # Flatten to 1D if needed
+        # sns.histplot(data=data, bins=128, ax=ax)
+        # # ax.set_xlim(-0.5, 0.5)
+        # # ax.set_xticks(range(len(residuals)))
+        # # ax.set_xticklabels([f'Q{i+1}' for i in range(len(residuals))])
+        # ax.set_title("Distribution of RVQ Residuals Across Quantizer Levels")
+        # ax.set_ylabel("Residual Value")
+        # ax.set_xlabel("Quantizer Level")
+        # plt.tight_layout()
+        # plt.savefig(f"residuals_{len(residuals)}_{randint(0,10000)}.pdf")
 
         codes = torch.stack(codebook_indices, dim=1)
         latents = torch.cat(latents, dim=1)

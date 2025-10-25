@@ -1,6 +1,6 @@
 import csv
 import multiprocessing as mp
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -54,9 +54,9 @@ def get_metrics(signal_path, recons_path, state):
 @argbind.bind(without_prefix=True)
 @torch.no_grad()
 def evaluate(
-    input: str = "/N/slate/daripete/jstsp-dac/runs2/hb_18cb/300k/audios/input",
-    output: str = "/N/slate/daripete/jstsp-dac/runs2/hb_18cb/300k/audios/output",
-    n_proc: int = 50,
+    input: str = "/N/slate/daripete/jstsp-dac/runs2/baseline_29cb_medium/300k/audios/input",
+    output: str = "/N/slate/daripete/jstsp-dac/runs2/baseline_29cb_medium/300k/audios/output",
+    n_proc: int = 16,
 ):
     tracker = Tracker()
     waveform_loss = losses.L1Loss()
@@ -86,33 +86,23 @@ def evaluate(
         return o
 
     futures = []
-    # from tqdm import tqdm
-    # with open(f"/N/slate/daripete/jstsp-dac/runs2/hb_18cb/300k/audios/results/{output.stem}_dummy.csv", "w") as csvfile:
-    #     for i, a in tqdm(enumerate(audio_files), total=len(audio_files)):
-    #         future = get_metrics(audio_files[i], output / audio_files[i].name, state)
-    #         futures.append(future)
-    #     keys = list(futures[0].keys())
-    #     writer = csv.DictWriter(csvfile, fieldnames=keys)
-    #     writer.writeheader()
-
-    #     for future in futures:
-    #         record(future, writer)
-    from tqdm import tqdm
     with tracker.live:
-        with open(f"/N/slate/daripete/jstsp-dac/runs2/hb_18cb/300k/audios/results/{output.stem}_visqol.csv", "w") as csvfile:
+        with open(output / "metrics_multi.csv", "w") as csvfile:
             with ProcessPoolExecutor(n_proc, mp.get_context("fork")) as pool:
-                for i in tqdm(range(len(audio_files)), total=len(audio_files)):
+                for i in range(len(audio_files)):
                     future = pool.submit(
                         get_metrics, audio_files[i], output / audio_files[i].name, state
                     )
                     futures.append(future)
+                    print(f'proc1: {i}')
 
                 keys = list(futures[0].result().keys())
                 writer = csv.DictWriter(csvfile, fieldnames=keys)
                 writer.writeheader()
 
-                for future in futures:
+                for i, future in enumerate(futures):
                     record(future, writer)
+                    print(f'proc1: {i}')
 
         tracker.done("test", f"N={len(audio_files)}")
 
