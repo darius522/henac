@@ -140,8 +140,7 @@ notebooks/*.ipynb
 notebooks/*.gif
 notebooks/*.wav
 notebooks/*.mp4
-*runs/
-*runs2/
+*runs*/
 boards/
 samples/
 *.ipynb
@@ -177,3 +176,5 @@ encoded_out/
 recon/
 recons/
 datasets/*.csv
+*.pdf
+*.ttf

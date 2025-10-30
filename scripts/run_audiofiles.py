@@ -99,27 +99,28 @@ def main(args):
     os.makedirs(outpath_out, exist_ok=True)
     conf_file = "/".join(args.model_path.split("/")[:-1]) + "/conf.yaml"
 
+    conf_dict = get_model_args(conf_file)
     model = dac.DAC.load(
         os.path.join(args.model_path, "dac/weights.pth"),
         strict=True,
-        **get_model_args(conf_file),
+        **conf_dict,
     )
     model.eval()
     model.to("cuda")
 
     dataset = pd.read_csv(args.dataset)
-    dataset = dataset.sort_values(by='path')[:1000]
+    dataset = dataset.sort_values(by='path')[:10]
     all_codes, snrs, fnames = [], [], []
 
     duration = 10.0
-    num_codebook = [29, 1]
+    num_codebook = [32, 1]
     for i, row in tqdm(dataset.iterrows(), total=len(dataset)):
         audio = AudioSignal(row.path, duration=30.)
-        if audio.shape[-1] < duration * 24_000:
+        if audio.shape[-1] < duration * conf_dict['sample_rate']:
             print('Audio shorter that duration, skipping!')
             continue
 
-        signals = get_chunks(audio, duration, 24_000)
+        signals = get_chunks(audio, duration, conf_dict['sample_rate'])
         signals = AudioSignal.batch(signals, pad_signals=True)
         for j, signal in enumerate(signals):
             signal.to(model.device)
@@ -137,17 +138,18 @@ def main(args):
             sf.write(
                 os.path.join(outpath_in, f"{fname}.wav"),
                 signal.reshape(-1).numpy(),
-                samplerate=24_000,
+                samplerate=conf_dict['sample_rate'],
             )
             sf.write(
                 os.path.join(outpath_out, f"{fname}.wav"),
                 y.reshape(-1).numpy(),
-                samplerate=24_000,
+                samplerate=conf_dict['sample_rate'],
             )
 
             del out
 
     fr = all_codes[0].shape[-1] // duration
+    import pdb; pdb.set_trace()
     codes = np.concatenate(all_codes, -1)
     bitrates = compute_entropy(codes, N=1024, M=codes.shape[0], frame_rate=fr)
     results_to_csv(
@@ -169,13 +171,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/datasets/fma_test.csv",
+        default="/N/slate/daripete/jstsp-dac/datasets/fma_32khz/fma_mushra.csv",
         required=False,
     )
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs2/baseline_29cb_medium/300k",
+        default="/N/slate/daripete/jstsp-dac/runs_32khz/baseline_32_1cb_large/300k",
         required=False,
     )
     parser.add_argument(
