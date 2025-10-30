@@ -26,6 +26,7 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+visqol/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -139,8 +140,7 @@ notebooks/*.ipynb
 notebooks/*.gif
 notebooks/*.wav
 notebooks/*.mp4
-*runs/
-*runs2/
+*runs*/
 boards/
 samples/
 *.ipynb
@@ -176,4 +176,5 @@ encoded_out/
 recon/
 recons/
 datasets/*.csv
-visqol/
+*.pdf
+*.ttf
