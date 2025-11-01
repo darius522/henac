@@ -94,7 +94,7 @@ def get_model_args(conf_path):
 def main(args):
 
     outpath_in = os.path.join(args.model_path, "audios/input")
-    outpath_out = os.path.join(args.model_path, "audios/output")
+    outpath_out = os.path.join(args.model_path, "audios/output_16kbps")
     os.makedirs(outpath_in, exist_ok=True)
     os.makedirs(outpath_out, exist_ok=True)
     conf_file = "/".join(args.model_path.split("/")[:-1]) + "/conf.yaml"
@@ -108,14 +108,13 @@ def main(args):
     model.eval()
     model.to("cuda")
 
-    dataset = pd.read_csv(args.dataset)
-    dataset = dataset.sort_values(by='path')[:10]
+    dataset = pd.read_csv(args.dataset)[:1000]
     all_codes, snrs, fnames = [], [], []
 
-    duration = 10.0
-    num_codebook = [32, 1]
+    duration = 5.0
+    num_codebook = [20, 1]
     for i, row in tqdm(dataset.iterrows(), total=len(dataset)):
-        audio = AudioSignal(row.path, duration=30.)
+        audio = AudioSignal(row.path)
         if audio.shape[-1] < duration * conf_dict['sample_rate']:
             print('Audio shorter that duration, skipping!')
             continue
@@ -149,7 +148,6 @@ def main(args):
             del out
 
     fr = all_codes[0].shape[-1] // duration
-    import pdb; pdb.set_trace()
     codes = np.concatenate(all_codes, -1)
     bitrates = compute_entropy(codes, N=1024, M=codes.shape[0], frame_rate=fr)
     results_to_csv(
@@ -177,7 +175,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs_32khz/baseline_32_1cb_large/300k",
+        default="/N/slate/daripete/jstsp-dac/runs_32khz/baseline_32_1cb_large_fr_80/300k",
         required=False,
     )
     parser.add_argument(
