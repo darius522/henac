@@ -125,7 +125,7 @@ def main(args):
     # for num_codebook in tqdm(num_codebooks):
     # print(f'Running for config: {num_codebook}')
     outpath_in = os.path.join(args.model_path, f"audios_subset/input")#_{num_codebook}")
-    outpath_out = os.path.join(args.model_path, f"audios_subset/output")#_{num_codebook}")
+    outpath_out = os.path.join(args.model_path, f"audios_subset/output_16kbps")#_{num_codebook}")
     os.makedirs(outpath_in, exist_ok=True)
     os.makedirs(outpath_out, exist_ok=True)
     conf_file = '/'.join(args.model_path.split('/')[:-1]) + '/conf.yaml'
@@ -152,6 +152,7 @@ def main(args):
     
     resampler = julius.SplitBands(32_000, cutoffs=[3000, 6000]).to('cuda')
     duration = 5.0
+    num_codebook = [11, 2, 1]
     for i, row in tqdm(dataset.iterrows(), total=len(dataset)):
         audio = AudioSignal(row.path)
         if audio.shape[-1] < duration * 32_000:
@@ -166,7 +167,7 @@ def main(args):
             fnames.append(fname)
 
             with torch.no_grad():
-                out = model.infer_bands(signal.audio_data)#, n_quantizers=num_codebook)
+                out = model.infer_bands(signal.audio_data, n_quantizers=num_codebook)
                 y_bands, codes, feats = out['audio'], out['codes'], out['feats']
 
             for k, c in codes.items(): # k, [B, CB, T]
