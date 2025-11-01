@@ -476,6 +476,7 @@ class DAC(BaseModel, CodecMixin):
         return {
             "audio": {'core': xcore, 'mb': xmb, 'hb': xhb},
             "codes": codes,
+            "feats": feats,
         }
 
 
