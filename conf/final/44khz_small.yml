@@ -1,15 +1,30 @@
 # Model setup
 DAC.sample_rate: 44100
 DAC.encoder_dim: 64
-DAC.encoder_rates: [2, 4, 8, 8]
+DAC.encoder_rates: [2, 2, 8, 16]
 DAC.decoder_dim: 1536
-DAC.decoder_rates: [8, 8, 4, 2]
+DAC.decoder_rates: [16, 8, 2, 2]
+DAC.latent_dim: 1024
 
 # Quantization
-DAC.n_codebooks: 9
+DAC.n_codebooks: 32
 DAC.codebook_size: 1024
 DAC.codebook_dim: 8
 DAC.quantizer_dropout: 0.5
+DAC.min_n_codebooks: 1  # min number of cb used during dropout
+
+# Skip-specific
+DAC.skip_args:
+  codebook_dim: 8
+  n_codebooks: 1
+  encoder_rates: [3]
+  decoder_rates: [3]
+  quantizer_dropout: 0.0
+  gumbel_softmax: false
+  diff_entropy: false
+
+resume_ckpt: "" #'/N/slate/daripete/jstsp-dac/runs/baseline/200k/'
+decoder_frozen: false
 
 # Discriminator
 Discriminator.sample_rate: 44100
@@ -29,21 +44,21 @@ AdamW.lr: 0.0001
 ExponentialLR.gamma: 0.999996
 
 amp: false
-val_batch_size: 100
+val_batch_size: 1
 device: cuda
 num_iters: 400000
-save_iters: [10000, 50000, 100000, 200000]
+save_iters: [1, 50000, 100000, 200000, 300000, 400000]
 valid_freq: 1000
 sample_freq: 10000
-num_workers: 32
+num_workers: 10
 val_idx: [0, 1, 2, 3, 4, 5, 6, 7]
-seed: 0
 lambdas:
   mel/loss: 15.0
   adv/feat_loss: 2.0
   adv/gen_loss: 1.0
   vq/commitment_loss: 0.25
   vq/codebook_loss: 1.0
+  vq/entropy_loss: 0.0
 
 VolumeNorm.db: [const, -16]
 
@@ -69,11 +84,11 @@ MelSpectrogramLoss.clamp_eps: 1.0e-5
 MelSpectrogramLoss.mag_weight: 0.0
 
 # Data
-batch_size: 72
+batch_size: 8
 train/AudioDataset.duration: 0.38
 train/AudioDataset.n_examples: 10000000
 
-val/AudioDataset.duration: 5.0
+val/AudioDataset.duration: 0.38
 val/build_transform.augment_prob: 1.0
 val/AudioDataset.n_examples: 250
 
@@ -81,43 +96,39 @@ test/AudioDataset.duration: 10.0
 test/build_transform.augment_prob: 1.0
 test/AudioDataset.n_examples: 1000
 
-AudioLoader.shuffle: true
+AudioLoader.shuffle: false
 AudioDataset.without_replacement: true
 
 train/build_dataset.folders:
-  speech_fb:
-    - /data/daps/train
-  speech_hq:
-    - /data/vctk
-    - /data/vocalset
-    - /data/read_speech
-    - /data/french_speech
-  speech_uq:
-    - /data/emotional_speech/
-    - /data/common_voice/
-    - /data/german_speech/
-    - /data/russian_speech/
-    - /data/spanish_speech/
+  # speech_fb:
+  #   - /data/daps/train
+  # speech_hq:
+  #   - /data/vctk
+  #   - /data/vocalset
+  #   - /data/read_speech
+  #   - /data/french_speech
+  # speech_uq:
+  #   - /data/emotional_speech/
+  #   - /data/common_voice/
+  #   - /data/german_speech/
+  #   - /data/russian_speech/
+  #   - /data/spanish_speech/
   music_hq:
-    - /data/musdb/train
-  music_uq:
-    - /data/jamendo
-  general:
-    - /data/audioset/data/unbalanced_train_segments/
-    - /data/audioset/data/balanced_train_segments/
+    - /N/slate/daripete/jstsp-dac/datasets/fma_32khz/fma_train.csv
+  # music_uq:
+  #   - /data/jamendo
+  # general:
+  #   - /data/audioset/data/unbalanced_train_segments/
+  #   - /data/audioset/data/balanced_train_segments/
 
 val/build_dataset.folders:
-  speech_hq:
-    - /data/daps/val
+  # speech_hq:
+  #   - /data/daps/val
   music_hq:
-    - /data/musdb/test
-  general:
-    - /data/audioset/data/eval_segments/
+    - /N/slate/daripete/jstsp-dac/datasets/fma_32khz/fma_valid.csv
+  # general:
+  #   - /data/audioset/data/eval_segments/
 
 test/build_dataset.folders:
-  speech_hq:
-    - /data/daps/test
   music_hq:
-    - /data/musdb/test
-  general:
-    - /data/audioset/data/eval_segments/
+    - /N/slate/daripete/jstsp-dac/datasets/fma_32khz/fma_test.csv
