@@ -26,17 +26,18 @@ class State:
 
 def get_metrics(signal_path, recons_path, state):
     output = {}
-    bands = [3000, 6000]
+    bands = [3000]
     signal = AudioSignal(signal_path).to("cuda")
     recons = AudioSignal(recons_path).to("cuda")
-    # sp = julius.SplitBands(24_000, cutoffs=bands).to('cpu')
-    # xb, yb = sp(signal.audio_data.clone()), sp(recons.audio_data.clone())
+    sp = julius.SplitBands(24_000, cutoffs=bands).to('cuda')
+    xb, yb = sp(signal.audio_data.clone()), sp(recons.audio_data.clone())  # list<Tensor[B x 1 x T]>
+    xb, yb = xb[-1], yb[-1]
     # xb, yb = torch.concatenate([xb, signal.audio_data[None]]), torch.concatenate([yb, recons.audio_data[None]])
     # for x, y, k in zip(xb, yb, bands + [12000, 'full']):
-    k = 'full'
+    k = '6_12khz'
     k = str(k)
-    x = signal#AudioSignal(x, signal.sample_rate)
-    y = recons#AudioSignal(y, signal.sample_rate)
+    x = AudioSignal(xb, signal.sample_rate)
+    y = AudioSignal(yb, signal.sample_rate)
     if k == 'full':
         output.update(
             {
@@ -66,9 +67,9 @@ def get_metrics(signal_path, recons_path, state):
 @argbind.bind(without_prefix=True)
 @torch.no_grad()
 def evaluate(
-    input: str = "/N/slate/daripete/jstsp-dac/runs2/baseline_29cb/300k/audios/input",
-    output: str = "/N/slate/daripete/jstsp-dac/runs2/baseline_29cb/300k/audios/output",
-    n_proc: int = 50,
+    input: str = "/N/slate/daripete/jstsp-dac/runs_24khz/baseline_29cb/300k/audios/input",
+    output: str = "/N/slate/daripete/jstsp-dac/runs_24khz/baseline_29cb/300k/audios/output",
+    n_proc: int = 1,
 ):
     tracker = Tracker()
 
@@ -100,7 +101,7 @@ def evaluate(
 
     futures = []
     # with tracker.live:
-    with open(output / "metrics_all.csv", "w") as csvfile:
+    with open(output / "metrics_all_3_12khz.csv", "w") as csvfile:
         for i in tqdm(range(len(audio_files))):
             future = get_metrics(audio_files[i], output / audio_files[i].name, state)
             futures.append(future)
