@@ -214,10 +214,10 @@ class DAC(BaseModel, CodecMixin):
     def __init__(
         self,
         encoder_dim: int = 64,
-        encoder_rates: List[int] = [2, 2, 4, 20],
+        encoder_rates: List[int] = [2, 2, 5, 20],
         latent_dim: int = None,
         decoder_dim: int = 1536,
-        decoder_rates: List[int] = [20, 4, 2, 2],
+        decoder_rates: List[int] = [20, 5, 2, 2],
         n_codebooks: int = 32,
         codebook_size: int = 1024,
         codebook_dim: Union[int, list] = 8,

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH -J mb_32_1cb_2cb_fr_80
+#SBATCH -J mb_21cb_2cb_fr_80
 #SBATCH -p hopper
 #SBATCH -o /N/slate/daripete/jstsp-dac/logs/%j.out
 #SBATCH -e /N/slate/daripete/jstsp-dac/logs/%j.err
@@ -18,8 +18,8 @@ conda activate /N/slate/daripete/anaconda3/envs/dac
 
 CODE_ROOT="$PWD"
 
-CUDA_VISIBLE_DEVICES=0,1 torchrun \
+CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun \
                     --nproc_per_node gpu scripts/train.py \
                     --args.load conf/final/32khz_mb.yml \
                     --seed 1 \
-                    --save_path runs_32khz/mb_32_1cb_2cb_fr_80 \
+                    --save_path runs_32khz/mb_21cb_2cb_fr_80 \

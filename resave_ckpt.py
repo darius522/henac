@@ -15,7 +15,7 @@ from collections import OrderedDict
 # In[ ]:
 
 
-ckpt_path = '/N/slate/daripete/jstsp-dac/runs_32khz/baseline_32_1cb_small_fr_80/300k/dac/weights.pth'
+ckpt_path = '/N/slate/daripete/jstsp-dac/runs_32khz/baseline_21cb_small_fr_80/300k/dac/weights.pth'
 state_dict = torch.load(ckpt_path, map_location=torch.device('cpu'))['state_dict']
 state_dict = {k: v for k, v in state_dict.items() if not "skip_aes" in k}
 # Skip-specific
