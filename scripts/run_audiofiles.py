@@ -152,7 +152,7 @@ def main(args):
     
     resampler = julius.SplitBands(32_000, cutoffs=[3000, 6000]).to('cuda')
     duration = 5.0
-    num_codebook = [11, 2, 1]
+    num_codebook = [21, 2, 1]
     for i, row in tqdm(dataset.iterrows(), total=len(dataset)):
         audio = AudioSignal(row.path)
         if audio.shape[-1] < duration * 32_000:
@@ -252,7 +252,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs_32khz/hb_32_1cb_2cb_1cb_fr_80/300k",
+        default="/N/slate/daripete/jstsp-dac/runs_32khz/hb_21cb_2cb_1cb_fr_80/300k",
         required=False,
     )
     parser.add_argument(

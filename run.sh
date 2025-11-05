@@ -20,6 +20,6 @@ CODE_ROOT="$PWD"
 
 CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun \
                     --nproc_per_node gpu scripts/train.py \
-                    --args.load conf/final/32khz_hb_dropout.yml \
+                    --args.load conf/final/32khz_hb.yml \
                     --seed 1 \
-                    --save_path runs_32khz/hb_32_1cb_2_1cb_1cb_fr_80
+                    --save_path runs_32khz/hb_21cb_2cb_1cb_fr_80
