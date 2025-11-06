@@ -7,11 +7,11 @@ DAC.decoder_rates: [20, 5, 2, 2]
 DAC.latent_dim: 1536
 
 # Quantization
-DAC.n_codebooks: 31
+DAC.n_codebooks: 26
 DAC.codebook_size: 1024
 DAC.codebook_dim: 8
 DAC.quantizer_dropout: 0.0
-DAC.min_n_codebooks: 31  # min number of cb used during dropout
+DAC.min_n_codebooks: 26  # min number of cb used during dropout
 
 # Skip-specific
 DAC.skip_args:
