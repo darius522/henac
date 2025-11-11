@@ -108,11 +108,11 @@ def main(args):
     model.eval()
     model.to("cuda")
 
-    dataset = pd.read_csv(args.dataset)[:1000]
+    dataset = pd.read_csv(args.dataset)[:10]
     all_codes, snrs, fnames = [], [], []
 
     duration = 5.0
-    num_codebook = [31, 1]
+    num_codebook = [21, 1]
     for i, row in tqdm(dataset.iterrows(), total=len(dataset)):
         audio = AudioSignal(row.path)
         if audio.shape[-1] < duration * conf_dict['sample_rate']:
@@ -175,7 +175,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs_32khz/baseline_31cb_large_fr_80/300k",
+        default="/N/slate/daripete/jstsp-dac/runs_32khz/baseline_32_1cb_large_fr_80/300k",
         required=False,
     )
     parser.add_argument(

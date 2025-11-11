@@ -1,7 +1,7 @@
 #!/bin/bash
 
-#SBATCH -J bsline_large
-#SBATCH -p hopper
+#SBATCH -J bsline_small
+#SBATCH -p gpu
 #SBATCH -o /N/slate/daripete/jstsp-dac/logs/%j.out
 #SBATCH -e /N/slate/daripete/jstsp-dac/logs/%j.err
 #SBATCH --mail-type=ALL
@@ -20,6 +20,6 @@ CODE_ROOT="$PWD"
 
 CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun \
                     --nproc_per_node gpu scripts/train.py \
-                    --args.load conf/final/32khz_baseline_small_2.yml \
+                    --args.load conf/final/32khz_baseline_small.yml \
                     --seed 1 \
-                    --save_path runs_32khz/baseline_26cb_large_fr_80
+                    --save_path runs_32khz/baseline_32_1cb_small_fr_80_320
