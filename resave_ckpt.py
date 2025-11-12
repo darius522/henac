@@ -11,9 +11,9 @@ def run_stage1(ckpt_path):
 
     skip_args = dict(
         codebook_dim=4096,
-        n_codebooks=2,
-        encoder_rates=[4],
-        decoder_rates=[4],
+        n_codebooks=4,
+        encoder_rates=[5],
+        decoder_rates=[5],
         quantizer_dropout=0.0,
         gumbel_softmax=False,
         diff_entropy=False,
@@ -60,18 +60,18 @@ def run_stage2(ckpt_path):
     skip_args = {
         0: dict(
             codebook_dim=4096,
-            n_codebooks=2,
-            encoder_rates=[3],
-            decoder_rates=[3],
+            n_codebooks=4,
+            encoder_rates=[5],
+            decoder_rates=[5],
             quantizer_dropout=0.0,
             gumbel_softmax=False,
             diff_entropy=False,
         ),
         1: dict(
             codebook_dim=16384,
-            n_codebooks=1,
-            encoder_rates=[6],
-            decoder_rates=[6],
+            n_codebooks=2,
+            encoder_rates=[16],
+            decoder_rates=[16],
             quantizer_dropout=0.0,
             gumbel_softmax=False,
             diff_entropy=False,
