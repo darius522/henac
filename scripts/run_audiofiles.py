@@ -1,4 +1,4 @@
-import sys
+import sys, math
 
 sys.path.append("/N/slate/daripete/jstsp-dac")
 
@@ -129,7 +129,7 @@ def get_model_args(conf_path):
 def main(args):
 
     dataset = pd.read_csv(args.dataset)[:10]
-    num_codebook = [21, 0, 0]
+    num_codebook = [16, 1, 0]
     # num_codebooks = [
     #     # [[True, False], [True, False]], # 18, 0, 0
     #     # [[True, True], [True, False]], # 18, 2, 0
@@ -142,7 +142,7 @@ def main(args):
         args.model_path, f"audios_subset/input"
     )  # _{num_codebook}")
     outpath_out = os.path.join(
-        args.model_path, f"audios_subset/output_16kbps"
+        args.model_path, f"audios_subset/output_tmp"
     )  # _{num_codebook}")
     os.makedirs(outpath_in, exist_ok=True)
     os.makedirs(outpath_out, exist_ok=True)
@@ -309,6 +309,11 @@ def main(args):
     print(f"Overall Total Entropy: {np.round(tot_ent, 1)}")
     for k, v in snrs.items():
         print(f"Overall SNR for {k}: {np.round(np.mean(v), 1)}")
+        
+    # lastly rename output folder to include bitrate info
+    
+    new_outpath = outpath_out + f"_{int(math.floor(tot_ent / 1000))}kbps"
+    os.rename(outpath_out, new_outpath)
 
 
 if __name__ == "__main__":
@@ -324,7 +329,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs_32khz/hb_32_1cb_2_1cb_1cb_fr_80/300k",
+        default="/N/slate/daripete/jstsp-dac/runs_32khz/hb_32_1cb_4_1cb_2_1cb_fr_80_320_500/300k",
         required=False,
     )
     parser.add_argument(

@@ -1,7 +1,8 @@
 #!/bin/bash
 
-#SBATCH -J hb
+#SBATCH -J 32khz_hb_dropout
 #SBATCH -p hopper
+#SBATCH --qos=hopper
 #SBATCH -o /N/slate/daripete/jstsp-dac/logs/%j.out
 #SBATCH -e /N/slate/daripete/jstsp-dac/logs/%j.err
 #SBATCH --mail-type=ALL
@@ -10,7 +11,7 @@
 #SBATCH --gres=gpu:4
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=8
-#SBATCH --time=48:00:00
+#SBATCH --time=20:00:00
 #SBATCH --mem=40G
 #SBATCH -A r00105
 
@@ -20,6 +21,6 @@ CODE_ROOT="$PWD"
 
 CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun \
                     --nproc_per_node gpu scripts/train.py \
-                    --args.load conf/final/32khz_hb.yml \
+                    --args.load conf/final/32khz_hb_dropout.yml \
                     --seed 1 \
-                    --save_path runs_32khz/hb_21cb_2cb_1cb_fr_80
+                    --save_path runs_32khz/hb_32_1cb_4_1cb_2_1cb_fr_80_320_500
