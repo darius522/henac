@@ -1,4 +1,4 @@
-import sys
+import sys, math
 import yaml
 
 sys.path.append("/N/slate/daripete/jstsp-dac")
@@ -94,7 +94,7 @@ def get_model_args(conf_path):
 def main(args):
 
     outpath_in = os.path.join(args.model_path, "audios/input")
-    outpath_out = os.path.join(args.model_path, "audios/output_16kbps")
+    outpath_out = os.path.join(args.model_path, "audios/output_tmp")
     os.makedirs(outpath_in, exist_ok=True)
     os.makedirs(outpath_out, exist_ok=True)
     conf_file = "/".join(args.model_path.split("/")[:-1]) + "/conf.yaml"
@@ -110,9 +110,41 @@ def main(args):
 
     dataset = pd.read_csv(args.dataset)[:10]
     all_codes, snrs, fnames = [], [], []
+    
+    #  0: raw =    763.1, floored =        0
+    #  1: raw =   1545.2, floored =     1000
+    #  2: raw =   2329.1, floored =     2000
+    #  3: raw =   3113.4, floored =     3000
+    #  4: raw =   3899.1, floored =     3000
+    #  5: raw =   4684.9, floored =     4000
+    #  6: raw =   5470.8, floored =     5000
+    #  7: raw =   6256.7, floored =     6000
+    #  8: raw =   7044.0, floored =     7000
+    #  9: raw =   7830.5, floored =     7000
+    # 10: raw =   8617.2, floored =     8000
+    # 11: raw =   9404.8, floored =     9000
+    # 12: raw =  10192.0, floored =    10000
+    # 13: raw =  10979.0, floored =    10000
+    # 14: raw =  11766.0, floored =    11000
+    # 15: raw =  12553.4, floored =    12000
+    # 16: raw =  13340.8, floored =    13000
+    # 17: raw =  14127.7, floored =    14000
+    # 18: raw =  14914.6, floored =    14000
+    # 19: raw =  15701.3, floored =    15000
+    # 20: raw =  16488.8, floored =    16000
+    # 21: raw =  17276.1, floored =    17000
+    # 22: raw =  18063.7, floored =    18000
+    # 23: raw =  18851.2, floored =    18000
+    # 24: raw =  19639.0, floored =    19000
+    # 25: raw =  20426.4, floored =    20000
+    # 26: raw =  21213.8, floored =    21000
+    # 27: raw =  22001.1, floored =    22000
+    # 28: raw =  22788.5, floored =    22000
+    # 29: raw =  23576.1, floored =    23000
+    # 30: raw =  24363.5, floored =    24000
 
     duration = 5.0
-    num_codebook = [21, 1]
+    num_codebook = [31, 1]
     for i, row in tqdm(dataset.iterrows(), total=len(dataset)):
         audio = AudioSignal(row.path)
         if audio.shape[-1] < duration * conf_dict['sample_rate']:
@@ -132,6 +164,7 @@ def main(args):
             all_codes.append(codes.squeeze(0).detach().cpu().numpy())
 
             y, signal = y.to("cpu").detach(), signal.audio_data.to("cpu").detach()
+            y = y / torch.max(torch.abs(y)) * 0.99  # prevent clipping
             snrs.append(ScaleInvariantSignalNoiseRatio().to("cpu")(y, signal))
 
             sf.write(
@@ -160,6 +193,9 @@ def main(args):
     print(f"Codebook Entropy: {np.round(br_per_cb, 1)}")
     print(f"Overall Entropy: {np.round(br_per_cb.sum(), 1)}")
     print(f"Overall SNR: {np.round(np.mean(snrs), 1)}")
+    
+    new_outpath = outpath_out + f"_{int(math.floor(br_per_cb.sum() / 1000))}kbps"
+    os.rename(outpath_out, new_outpath)
 
 
 if __name__ == "__main__":
@@ -188,18 +224,3 @@ if __name__ == "__main__":
 
     main(args)
 
-# latent_dim = 32
-# Overall Bitrate per CB: [3976.7 4110.9 4189.7 4190. ]
-# Overall SNR for midband: 2.0
-
-# latent_dim = 64
-# Overall Bitrate per CB: [3656.6 3877.5 3967.4 3877.8]
-# Overall SNR for midband: 1.6
-
-# latent_dim = 128
-# Overall Bitrate per CB: [3240.9 3474.6 3558.2 3421. ]
-# Overall SNR for midband: 0.5
-
-# latent_dim = 256
-# Overall Bitrate per CB: [2708.1 3011.7 3232.5 3150.4]
-# Overall SNR for midband: -0.9
