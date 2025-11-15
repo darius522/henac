@@ -129,7 +129,7 @@ def get_model_args(conf_path):
 def main(args):
 
     dataset = pd.read_csv(args.dataset)[:10]
-    num_codebook = [16, 1, 0]
+    num_codebooks = [[16, 4, 2]]
     # num_codebooks = [
     #     # [[True, False], [True, False]], # 18, 0, 0
     #     # [[True, True], [True, False]], # 18, 2, 0
@@ -138,182 +138,183 @@ def main(args):
     #     [[True, True], [True, True]],  # 0, 0, 2
     #     # [[True, False], [False, True]], # 18, 0, 2
     # ]
-    outpath_in = os.path.join(
-        args.model_path, f"audios_subset/input"
-    )  # _{num_codebook}")
-    outpath_out = os.path.join(
-        args.model_path, f"audios_subset/output_tmp"
-    )  # _{num_codebook}")
-    os.makedirs(outpath_in, exist_ok=True)
-    os.makedirs(outpath_out, exist_ok=True)
-    conf_file = "/".join(args.model_path.split("/")[:-1]) + "/conf.yaml"
-    conf = get_model_args(conf_file)
+    for num_codebook in num_codebooks:
+        outpath_in = os.path.join(
+            args.model_path, f"audios/input"
+        )  # _{num_codebook}")
+        outpath_out = os.path.join(
+            args.model_path, f"audios/output"
+        )  # _{num_codebook}")
+        os.makedirs(outpath_in, exist_ok=True)
+        os.makedirs(outpath_out, exist_ok=True)
+        conf_file = "/".join(args.model_path.split("/")[:-1]) + "/conf.yaml"
+        conf = get_model_args(conf_file)
 
-    model = dac.DAC.load(
-        os.path.join(args.model_path, "dac/weights.pth"), strict=True, **conf
-    )
-    model.eval()
-    model.to("cuda")
+        model = dac.DAC.load(
+            os.path.join(args.model_path, "dac/weights.pth"), strict=True, **conf
+        )
+        model.eval()
+        model.to("cuda")
 
-    def count_parameters(model):
-        return sum(p.numel() for p in model.parameters())
+        def count_parameters(model):
+            return sum(p.numel() for p in model.parameters())
 
-    # Or to count only trainable parameters:
-    def count_trainable_parameters(model):
-        return sum(p.numel() for p in model.parameters() if p.requires_grad)
+        # Or to count only trainable parameters:
+        def count_trainable_parameters(model):
+            return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
-    # Example usage:
-    print("Total parameters:", count_parameters(model) / 1e6)
-    print("Trainable parameters:", count_trainable_parameters(model) / 1e6)
+        # Example usage:
+        print("Total parameters:", count_parameters(model) / 1e6)
+        print("Trainable parameters:", count_trainable_parameters(model) / 1e6)
 
-    all_feats, all_codes, snrs, fnames = (
-        dict(core=[], mb=[], hb=[]),
-        dict(core=[], mb=[], hb=[]),
-        dict(core=[], mb=[], hb=[]),
-        [],
-    )
+        all_feats, all_codes, snrs, fnames = (
+            dict(core=[], mb=[], hb=[]),
+            dict(core=[], mb=[], hb=[]),
+            dict(core=[], mb=[], hb=[]),
+            [],
+        )
 
-    # Calculate cutoffs based on num_codebook per bands
-    _, mb, hb = num_codebook
+        # Calculate cutoffs based on num_codebook per bands
+        _, mb, hb = num_codebook
 
-    if mb != 0 and hb != 0:
-        cutoffs = [3000, 6000]
-    elif mb != 0 and hb == 0:
-        cutoffs = [3000]
-    elif mb == 0 and hb == 0:
-        cutoffs = [int(conf["sample_rate"]//2)]
-    else:
-        cutoffs = []
+        if mb != 0 and hb != 0:
+            cutoffs = [3000, 6000]
+        elif mb != 0 and hb == 0:
+            cutoffs = [3000]
+        elif mb == 0 and hb == 0:
+            cutoffs = [int(conf["sample_rate"]//2)]
+        else:
+            cutoffs = []
 
-    resampler = julius.SplitBands(conf["sample_rate"], cutoffs=cutoffs).to("cuda")
-    duration = 5.0
-    for i, row in tqdm(dataset.iterrows(), total=len(dataset)):
-        audio = AudioSignal(row.path)
-        if audio.shape[-1] < duration * conf["sample_rate"]:
-            print("Audio shorter that duration, skipping!")
-            continue
+        resampler = julius.SplitBands(conf["sample_rate"], cutoffs=cutoffs).to("cuda")
+        duration = 5.0
+        for i, row in tqdm(dataset.iterrows(), total=len(dataset)):
+            audio = AudioSignal(row.path)
+            if audio.shape[-1] < duration * conf["sample_rate"]:
+                print("Audio shorter that duration, skipping!")
+                continue
 
-        signals = get_chunks(audio, duration, conf["sample_rate"])
-        signals = AudioSignal.batch(signals, pad_signals=True)
-        for j, signal in enumerate(signals):
-            signal.to(model.device)
-            fname = os.path.basename(row.path).split(".")[0] + f"_chunk_{j}"
-            fnames.append(fname)
+            signals = get_chunks(audio, duration, conf["sample_rate"])
+            signals = AudioSignal.batch(signals, pad_signals=True)
+            for j, signal in enumerate(signals):
+                signal.to(model.device)
+                fname = os.path.basename(row.path).split(".")[0] + f"_chunk_{j}"
+                fnames.append(fname)
 
-            with torch.no_grad():
-                non_zero_cbs = [
-                    conf["n_codebooks"],
-                    conf["skip_args"][0]["n_codebooks"],
-                    conf["skip_args"][1]["n_codebooks"],
-                ]
-                non_zero_cbs = [
-                    a if a != 0 else b for a, b in zip(num_codebook, non_zero_cbs)
-                ]
-                out = model.infer_bands(signal.audio_data, n_quantizers=non_zero_cbs)
-                y_bands, codes, feats = out["audio"], out["codes"], out["feats"]
-                keys = list(y_bands.keys())
+                with torch.no_grad():
+                    non_zero_cbs = [
+                        conf["n_codebooks"],
+                        conf["skip_args"][0]["n_codebooks"],
+                        conf["skip_args"][1]["n_codebooks"],
+                    ]
+                    non_zero_cbs = [
+                        a if a != 0 else b for a, b in zip(num_codebook, non_zero_cbs)
+                    ]
+                    out = model.infer_bands(signal.audio_data, n_quantizers=non_zero_cbs)
+                    y_bands, codes, feats = out["audio"], out["codes"], out["feats"]
+                    keys = list(y_bands.keys())
 
-                # mask for which bands to keep
-                keep_mask = [n != 0 for n in num_codebook]
+                    # mask for which bands to keep
+                    keep_mask = [n != 0 for n in num_codebook]
 
-                # filter each dict accordingly
-                y_bands = {
-                    k: v
-                    for k, v, keep in zip(keys, y_bands.values(), keep_mask)
-                    if keep
-                }
-                codes = {
-                    k: v for k, v, keep in zip(keys, codes.values(), keep_mask) if keep
-                }
-                feats = {
-                    k: v for k, v, keep in zip(keys, feats.values(), keep_mask) if keep
-                }
+                    # filter each dict accordingly
+                    y_bands = {
+                        k: v
+                        for k, v, keep in zip(keys, y_bands.values(), keep_mask)
+                        if keep
+                    }
+                    codes = {
+                        k: v for k, v, keep in zip(keys, codes.values(), keep_mask) if keep
+                    }
+                    feats = {
+                        k: v for k, v, keep in zip(keys, feats.values(), keep_mask) if keep
+                    }
 
-            for k, c in codes.items():  # k, [B, CB, T]
-                nc, fr = c.shape[1], int(c.shape[-1] // duration)
-                all_codes[k].append(c.squeeze(0).detach().cpu().numpy())
+                for k, c in codes.items():  # k, [B, CB, T]
+                    nc, fr = c.shape[1], int(c.shape[-1] // duration)
+                    all_codes[k].append(c.squeeze(0).detach().cpu().numpy())
 
-            for k, c in feats.items():  # k, [B, CB, T]
-                all_feats[k].append(c.squeeze(0).detach().cpu().numpy())
+                for k, c in feats.items():  # k, [B, CB, T]
+                    all_feats[k].append(c.squeeze(0).detach().cpu().numpy())
 
-            signal_bands = resampler(signal.audio_data)
+                signal_bands = resampler(signal.audio_data)
 
-            mb_rec = np.zeros(signal.audio_data.shape)
-            for i, ((k, y_band), signal_band) in enumerate(
-                zip(y_bands.items(), signal_bands)
-            ):
-                y_band = resampler(y_band)[i]
-                y_band = y_band.reshape(1, 1, -1).to("cuda")
-                signal_band = signal_band.reshape(1, 1, -1).to("cuda")
-                snrs[k].append(
-                    ScaleInvariantSignalNoiseRatio()
-                    .to("cuda")(y_band, signal_band)
-                    .detach()
-                    .cpu()
-                    .item()
+                mb_rec = np.zeros(signal.audio_data.shape)
+                for i, ((k, y_band), signal_band) in enumerate(
+                    zip(y_bands.items(), signal_bands)
+                ):
+                    y_band = resampler(y_band)[i]
+                    y_band = y_band.reshape(1, 1, -1).to("cuda")
+                    signal_band = signal_band.reshape(1, 1, -1).to("cuda")
+                    snrs[k].append(
+                        ScaleInvariantSignalNoiseRatio()
+                        .to("cuda")(y_band, signal_band)
+                        .detach()
+                        .cpu()
+                        .item()
+                    )
+
+                    mb_rec = mb_rec + y_band.cpu().detach().numpy()
+                    del y_band
+
+                # for k, y_band in y_bands.items():
+                #     sf.write(
+                #         os.path.join(args.output_path, f"{fname}_{k}.wav"),
+                #         y_band.reshape(-1).cpu().detach().numpy(),
+                #         samplerate=32_000,
+                #     )
+                sf.write(
+                    os.path.join(outpath_in, f"{fname}.wav"),
+                    signal.audio_data.reshape(-1).cpu().detach().numpy(),
+                    samplerate=conf["sample_rate"],
+                )
+                sf.write(
+                    os.path.join(outpath_out, f"{fname}.wav"),
+                    mb_rec.reshape(-1),
+                    samplerate=conf["sample_rate"],
                 )
 
-                mb_rec = mb_rec + y_band.cpu().detach().numpy()
-                del y_band
+                for k in list(codes.keys()):  # Convert to list to avoid runtime errors
+                    codes[k] = codes[k].detach().cpu()
+                del codes
 
-            # for k, y_band in y_bands.items():
-            #     sf.write(
-            #         os.path.join(args.output_path, f"{fname}_{k}.wav"),
-            #         y_band.reshape(-1).cpu().detach().numpy(),
-            #         samplerate=32_000,
-            #     )
-            sf.write(
-                os.path.join(outpath_in, f"{fname}.wav"),
-                signal.audio_data.reshape(-1).cpu().detach().numpy(),
-                samplerate=conf["sample_rate"],
-            )
-            sf.write(
-                os.path.join(outpath_out, f"{fname}.wav"),
-                mb_rec.reshape(-1),
-                samplerate=conf["sample_rate"],
-            )
+                for k in list(y_bands.keys()):
+                    y_bands[k] = y_bands[k].detach().cpu()
+                del y_bands
+                torch.cuda.empty_cache()
+                gc.collect()
 
-            for k in list(codes.keys()):  # Convert to list to avoid runtime errors
-                codes[k] = codes[k].detach().cpu()
-            del codes
+        for k, v in all_feats.items():
+            if len(v) > 0:
+                all_feats[k] = np.concatenate(v, -1)
 
-            for k in list(y_bands.keys()):
-                y_bands[k] = y_bands[k].detach().cpu()
-            del y_bands
-            torch.cuda.empty_cache()
-            gc.collect()
+        # plot_codebook_indices({k: np.concatenate(v, -1) for k, v in all_codes.items()})
+        # plot_band_latents(feats, projection='umap')
 
-    for k, v in all_feats.items():
-        if len(v) > 0:
-            all_feats[k] = np.concatenate(v, -1)
+        bitrates = dict()
+        for k, v in all_codes.items():
+            if len(v) > 0:
+                fr = v[0].shape[-1] // duration
+                codes = np.concatenate(v, -1)
+                bitrates[k] = compute_entropy(codes, N=1024, M=codes.shape[0], frame_rate=fr)
 
-    # plot_codebook_indices({k: np.concatenate(v, -1) for k, v in all_codes.items()})
-    # plot_band_latents(feats, projection='umap')
+        results_to_csv(
+            fnames, bitrates, snrs, path=os.path.join(args.model_path, "results.csv")
+        )
+        tot_ent = 0.0
+        for k, bitrates in bitrates.items():
+            br_per_cb = np.array(bitrates)
+            print(f"Codebook Entropy for {k}: {np.round(br_per_cb, 1)}")
+            print(f"Overall Entropy for {k}: {np.round(br_per_cb.sum())}")
+            tot_ent += br_per_cb.sum()
+        print(f"Overall Total Entropy: {np.round(tot_ent, 1)}")
+        for k, v in snrs.items():
+            print(f"Overall SNR for {k}: {np.round(np.mean(v), 1)}")
+            
+        # lastly rename output folder to include bitrate info
 
-    bitrates = dict()
-    for k, v in all_codes.items():
-        if len(v) > 0:
-            fr = v[0].shape[-1] // duration
-            codes = np.concatenate(v, -1)
-            bitrates[k] = compute_entropy(codes, N=1024, M=codes.shape[0], frame_rate=fr)
-
-    results_to_csv(
-        fnames, bitrates, snrs, path=os.path.join(args.model_path, "results.csv")
-    )
-    tot_ent = 0.0
-    for k, bitrates in bitrates.items():
-        br_per_cb = np.array(bitrates)
-        print(f"Codebook Entropy for {k}: {np.round(br_per_cb, 1)}")
-        print(f"Overall Entropy for {k}: {np.round(br_per_cb.sum())}")
-        tot_ent += br_per_cb.sum()
-    print(f"Overall Total Entropy: {np.round(tot_ent, 1)}")
-    for k, v in snrs.items():
-        print(f"Overall SNR for {k}: {np.round(np.mean(v), 1)}")
-        
-    # lastly rename output folder to include bitrate info
-    
-    new_outpath = outpath_out + f"_{int(math.floor(tot_ent / 1000))}kbps"
-    os.rename(outpath_out, new_outpath)
+        new_outpath = outpath_out + f"_{int(math.floor(tot_ent / 1000))}kbps"
+        os.rename(outpath_out, new_outpath)
 
 
 if __name__ == "__main__":
