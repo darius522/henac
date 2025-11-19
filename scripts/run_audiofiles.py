@@ -16,7 +16,7 @@ import librosa
 
 from torchmetrics.audio import ScaleInvariantSignalNoiseRatio
 
-import argparse, os
+import argparse, os, shutil
 
 from utils.audio_utils import normalize_to_match_peak_batched
 
@@ -78,7 +78,14 @@ def spectrogram(signal, path):
     plt.tight_layout()
     plt.savefig(path, dpi=100)
     del f
-
+    
+def match_rms(input_sig, output_sig):
+    in_rms = np.sqrt(np.mean(input_sig**2))
+    out_rms = np.sqrt(np.mean(output_sig**2))
+    if out_rms == 0:
+        return output_sig
+    scale = in_rms / out_rms
+    return output_sig * scale
 
 
 def results_to_csv(fnames, entropies, snrs, path):
@@ -128,8 +135,8 @@ def get_model_args(conf_path):
 
 def main(args):
 
-    dataset = pd.read_csv(args.dataset)[:10]
-    num_codebooks = [[16, 4, 2]]
+    dataset = pd.read_csv(args.dataset)[:30]
+    num_codebooks = [[16,4,2], [16,4,1], [16,4,0], [16,3,0] ,[16,2,0], [16,1,0]]
     # num_codebooks = [
     #     # [[True, False], [True, False]], # 18, 0, 0
     #     # [[True, True], [True, False]], # 18, 2, 0
@@ -256,6 +263,10 @@ def main(args):
 
                     mb_rec = mb_rec + y_band.cpu().detach().numpy()
                     del y_band
+                
+                input_sig = signal.audio_data.reshape(-1).cpu().detach().numpy()
+                output_sig = mb_rec.reshape(-1)
+                output_sig = match_rms(input_sig, output_sig)
 
                 # for k, y_band in y_bands.items():
                 #     sf.write(
@@ -313,7 +324,10 @@ def main(args):
             
         # lastly rename output folder to include bitrate info
 
-        new_outpath = outpath_out + f"_{int(math.floor(tot_ent / 1000))}kbps"
+        new_outpath = outpath_out + f"_{int(math.floor(tot_ent / 1000))}kbps_{num_codebook}"
+        # If destination exists, delete it
+        if os.path.exists(new_outpath):
+            shutil.rmtree(new_outpath)
         os.rename(outpath_out, new_outpath)
 
 
@@ -324,13 +338,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/datasets/fma_32khz/fma_mushra.csv",
+        default="/N/slate/daripete/jstsp-dac/datasets/fma_32khz/fma_test_subset.csv",
         required=False,
     )
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs_32khz/hb_32_1cb_4_1cb_2_1cb_fr_80_320_500/300k",
+        default="/N/slate/daripete/jstsp-dac/runs_32khz/hb_16cb_4_1cb_2_1cb_fr_80_320_500/300k",
         required=False,
     )
     parser.add_argument(
