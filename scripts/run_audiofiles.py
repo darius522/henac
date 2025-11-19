@@ -276,12 +276,12 @@ def main(args):
                 #     )
                 sf.write(
                     os.path.join(outpath_in, f"{fname}.wav"),
-                    signal.audio_data.reshape(-1).cpu().detach().numpy(),
+                    input_sig,
                     samplerate=conf["sample_rate"],
                 )
                 sf.write(
                     os.path.join(outpath_out, f"{fname}.wav"),
-                    mb_rec.reshape(-1),
+                    output_sig,
                     samplerate=conf["sample_rate"],
                 )
 
