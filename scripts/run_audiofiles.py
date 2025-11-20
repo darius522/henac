@@ -81,7 +81,14 @@ def get_chunks(signal, chunk_duration, sample_rate):
         signal[:, :, start : min(start + chunk_size, T)]
         for start in range(0, T, chunk_size)
     ]
-
+    
+def match_rms(input_sig, output_sig):
+    in_rms = np.sqrt(np.mean(input_sig**2))
+    out_rms = np.sqrt(np.mean(output_sig**2))
+    if out_rms == 0:
+        return output_sig
+    scale = in_rms / out_rms
+    return output_sig * scale
 
 def get_model_args(conf_path):
     with open(conf_path, "r") as file:
@@ -99,26 +106,12 @@ def get_model_args(conf_path):
 def main(args):
 
     num_codebooks = [
-        [31, 1],
-        [30, 1],
-        [29, 1],
-        [28, 1],
+        # [31, 1],
         [27, 1],
-        [26, 1],
         [25, 1],
-        [24, 1],
-        [23, 1],
         [22, 1],
-        [21, 1],
         [20, 1],
-        [19, 1],
         [18, 1],
-        [17, 1],
-        [16, 1],
-        [15, 1],
-        [14, 1],
-        [13, 1],
-        [12, 1],
     ]
     dataset = pd.read_csv(args.dataset)[:30]
     for num_codebook in num_codebooks:
@@ -163,15 +156,19 @@ def main(args):
                 y, signal = y.to("cpu").detach(), signal.audio_data.to("cpu").detach()
                 y = y / torch.max(torch.abs(y)) * 0.99  # prevent clipping
                 snrs.append(ScaleInvariantSignalNoiseRatio().to("cpu")(y, signal))
+                
+                input_sig = signal.reshape(-1).numpy()
+                output_sig = y.reshape(-1).numpy()
+                output_sig = match_rms(input_sig, output_sig)
 
                 sf.write(
                     os.path.join(outpath_in, f"{fname}.wav"),
-                    signal.reshape(-1).numpy(),
+                    input_sig,
                     samplerate=conf_dict["sample_rate"],
                 )
                 sf.write(
                     os.path.join(outpath_out, f"{fname}.wav"),
-                    y.reshape(-1).numpy(),
+                    output_sig,
                     samplerate=conf_dict["sample_rate"],
                 )
 
@@ -191,7 +188,7 @@ def main(args):
         print(f"Overall Entropy: {np.round(br_per_cb.sum(), 1)}")
         print(f"Overall SNR: {np.round(np.mean(snrs), 1)}")
 
-        new_outpath = outpath_out + f"_{int(math.floor(br_per_cb.sum() / 1000))}kbps"
+        new_outpath = outpath_out + f"_{int(math.floor(br_per_cb.sum() / 1000))}kbps_{num_codebook}"
         # If destination exists, delete it
         if os.path.exists(new_outpath):
             shutil.rmtree(new_outpath)
