@@ -1,4 +1,4 @@
-import sys, math
+import sys, math, ast
 import yaml
 
 sys.path.append("/N/slate/daripete/jstsp-dac")
@@ -105,45 +105,41 @@ def get_model_args(conf_path):
 
 def main(args):
 
-    num_codebooks = [
-        # [31, 1],
-        [27, 1],
-        [25, 1],
-        [22, 1],
-        [20, 1],
-        [18, 1],
-    ]
-    dataset = pd.read_csv(args.dataset)[:30]
-    for num_codebook in num_codebooks:
-        all_codes, snrs, fnames = [], [], []
+    num_codebook = ast.literal_eval(args.num_codebooks)
 
-        outpath_in = os.path.join(args.model_path, "audios/input")
-        outpath_out = os.path.join(args.model_path, "audios/output")
-        os.makedirs(outpath_in, exist_ok=True)
-        os.makedirs(outpath_out, exist_ok=True)
-        
-        conf_file = "/".join(args.model_path.split("/")[:-1]) + "/conf.yaml"
+    dataset = pd.read_csv(args.dataset)[:1000]
+    all_codes, snrs, fnames = [], [], []
 
-        conf_dict = get_model_args(conf_file)
-        model = dac.DAC.load(
-            os.path.join(args.model_path, "dac/weights.pth"),
-            strict=True,
-            **conf_dict,
-        )
-        model.eval()
-        model.to("cuda")
+    outpath_in = os.path.join(args.model_path, "audios/input")
+    outpath_out = os.path.join(
+        args.model_path, f"audios/output_{num_codebook}"
+    )
+    os.makedirs(outpath_in, exist_ok=True)
+    os.makedirs(outpath_out, exist_ok=True)
+    
+    conf_file = "/".join(args.model_path.split("/")[:-1]) + "/conf.yaml"
 
-        duration = 5.0
+    conf_dict = get_model_args(conf_file)
+    model = dac.DAC.load(
+        os.path.join(args.model_path, "dac/weights.pth"),
+        strict=True,
+        **conf_dict,
+    )
+    model.eval()
+    model.to("cuda")
 
-        for i, row in tqdm(dataset.iterrows(), total=len(dataset)):
-            audio = AudioSignal(row.path)
-            if audio.shape[-1] < duration * conf_dict["sample_rate"]:
-                print("Audio shorter that duration, skipping!")
-                continue
+    duration = 5.0
 
-            signals = get_chunks(audio, duration, conf_dict["sample_rate"])
-            signals = AudioSignal.batch(signals, pad_signals=True)
-            for j, signal in enumerate(signals):
+    for i, row in tqdm(dataset.iterrows(), total=len(dataset)):
+        audio = AudioSignal(row.path)
+        if audio.shape[-1] < duration * conf_dict["sample_rate"]:
+            print("Audio shorter that duration, skipping!")
+            continue
+
+        signals = get_chunks(audio, duration, conf_dict["sample_rate"])
+        signals = AudioSignal.batch(signals, pad_signals=True)
+        for j, signal in enumerate(signals):
+            try:
                 signal.to(model.device)
                 fname = os.path.basename(row.path).split(".")[0] + f"_chunk_{j}"
                 fnames.append(fname)
@@ -161,11 +157,11 @@ def main(args):
                 output_sig = y.reshape(-1).numpy()
                 output_sig = match_rms(input_sig, output_sig)
 
-                sf.write(
-                    os.path.join(outpath_in, f"{fname}.wav"),
-                    input_sig,
-                    samplerate=conf_dict["sample_rate"],
-                )
+                # sf.write(
+                #     os.path.join(outpath_in, f"{fname}.wav"),
+                #     input_sig,
+                #     samplerate=conf_dict["sample_rate"],
+                # )
                 sf.write(
                     os.path.join(outpath_out, f"{fname}.wav"),
                     output_sig,
@@ -173,26 +169,29 @@ def main(args):
                 )
 
                 del out
+            except Exception as e:
+                print(f"Error processing {row.path} chunk {j}: {e}")
+                continue
 
-        fr = all_codes[0].shape[-1] // duration
-        codes = np.concatenate(all_codes, -1)
-        bitrates = compute_entropy(codes, N=1024, M=codes.shape[0], frame_rate=fr)
-        results_to_csv(
-            fnames,
-            np.array(bitrates).sum(),  # sum over cb
-            np.array(snrs),
-            path=os.path.join(args.model_path, "results.csv"),
-        )
-        br_per_cb = np.array(bitrates)
-        print(f"Codebook Entropy: {np.round(br_per_cb, 1)}")
-        print(f"Overall Entropy: {np.round(br_per_cb.sum(), 1)}")
-        print(f"Overall SNR: {np.round(np.mean(snrs), 1)}")
+    fr = all_codes[0].shape[-1] // duration
+    codes = np.concatenate(all_codes, -1)
+    bitrates = compute_entropy(codes, N=1024, M=codes.shape[0], frame_rate=fr)
+    results_to_csv(
+        fnames,
+        np.array(bitrates).sum(),  # sum over cb
+        np.array(snrs),
+        path=os.path.join(args.model_path, "results.csv"),
+    )
+    br_per_cb = np.array(bitrates)
+    print(f"Codebook Entropy: {np.round(br_per_cb, 1)}")
+    print(f"Overall Entropy: {np.round(br_per_cb.sum(), 1)}")
+    print(f"Overall SNR: {np.round(np.mean(snrs), 1)}")
 
-        new_outpath = outpath_out + f"_{int(math.floor(br_per_cb.sum() / 1000))}kbps_{num_codebook}"
-        # If destination exists, delete it
-        if os.path.exists(new_outpath):
-            shutil.rmtree(new_outpath)
-        os.rename(outpath_out, new_outpath)
+    new_outpath = outpath_out + f"_{int(round(br_per_cb.sum() / 1000, 0))}kbps"
+    # If destination exists, delete it
+    if os.path.exists(new_outpath):
+        shutil.rmtree(new_outpath)
+    os.rename(outpath_out, new_outpath)
 
 
 if __name__ == "__main__":
@@ -202,13 +201,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/datasets/fma_32khz/fma_test_subset.csv",
+        default="/N/slate/daripete/jstsp-dac/datasets/fma_32khz/fma_test.csv",
         required=False,
     )
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs_32khz/baseline_31cb_large_fr_80/300k",
+        default="/N/slate/daripete/jstsp-dac/runs_32khz/baseline_32_1cb_xlarge_fr_80/300k",
         required=False,
     )
     parser.add_argument(
@@ -217,6 +216,8 @@ if __name__ == "__main__":
         default=None,
         required=False,
     )
+    parser.add_argument('--num_codebooks', type=str, required=True, 
+                    help='List of integers, e.g. "[31, 1]"')
     args = parser.parse_args()
 
     main(args)
