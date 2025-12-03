@@ -146,10 +146,10 @@ def main(args):
     #     # [[True, False], [False, True]], # 18, 0, 2
     # ]
     outpath_in = os.path.join(
-        args.model_path, f"audios/input"
+        args.model_path, f"audios/albations_input"
     )  # _{num_codebook}")
     outpath_out = os.path.join(
-        args.model_path, f"audios/output_{num_codebook}"
+        args.model_path, f"audios/ablations_output_{num_codebook}"
     )  # _{num_codebook}")
     os.makedirs(outpath_in, exist_ok=True)
     os.makedirs(outpath_out, exist_ok=True)
@@ -184,7 +184,7 @@ def main(args):
     _, mb, hb = num_codebook
 
     if mb != 0 and hb != 0:
-        cutoffs = [3000, 6000]
+        cutoffs = [3000, 6200]
     elif mb != 0 and hb == 0:
         cutoffs = [3000]
     elif mb == 0 and hb == 0:
@@ -240,8 +240,8 @@ def main(args):
                 nc, fr = c.shape[1], int(c.shape[-1] // duration)
                 all_codes[k].append(c.squeeze(0).detach().cpu().numpy())
 
-            # for k, c in feats.items():  # k, [B, CB, T]
-            #     all_feats[k].append(c.squeeze(0).detach().cpu().numpy())
+            for k, c in feats.items():  # k, [B, CB, T]
+                all_feats[k].append(c.squeeze(0).detach().cpu().numpy())
 
             signal_bands = resampler(signal.audio_data)
 
@@ -294,12 +294,12 @@ def main(args):
             torch.cuda.empty_cache()
             gc.collect()
 
-    # for k, v in all_feats.items():
-    #     if len(v) > 0:
-    #         all_feats[k] = np.concatenate(v, -1)
+    for k, v in all_feats.items():
+        if len(v) > 0:
+            all_feats[k] = np.concatenate(v, -1)
 
     # plot_codebook_indices({k: np.concatenate(v, -1) for k, v in all_codes.items()})
-    # plot_band_latents(feats, projection='umap')
+    plot_band_latents(feats, projection='umap')
 
     bitrates = dict()
     for k, v in all_codes.items():
@@ -337,7 +337,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/datasets/fma_32khz/fma_test.csv",
+        default="/N/slate/daripete/jstsp-dac/datasets/fma_32khz/fma_ablations.csv",
         required=False,
     )
     parser.add_argument(
