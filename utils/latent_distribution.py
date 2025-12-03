@@ -1,17 +1,14 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+font = {'family' : 'normal',
+    'size'   : 16}
+mpl.rc('font', **font)
 
-mpl.rcParams.update({
-    "text.usetex": False,  # use mathtext instead of full LaTeX
-    "font.family": "serif",
-    "font.serif": ["Computer Modern Roman"],  # default LaTeX-like font
-    "axes.unicode_minus": False
-})
+mpl.rcParams['pdf.fonttype'] = 42
+mpl.rcParams['ps.fonttype'] = 42
+mpl.rcParams['axes.unicode_minus'] = False
 import seaborn as sns
-from sklearn.manifold import TSNE
-from sklearn.decomposition import PCA
-import umap
 
 from scipy.stats import entropy
 
@@ -30,14 +27,12 @@ def plot_codebook_indices(data):
         plt.savefig(f"/N/slate/daripete/jstsp-dac/plots/band_indices_distributions_{band}.pdf", dpi=150)
 
 def plot_band_latents(bands, projection='tsne'):
-    
-    mpl.rc('font',**{'size':11.8})
 
     # Predefine pastel colors (you can add more if needed)
     pastel_colors = {
-        "core": "#FD932C",
-        "mb": "#7030A0",
-        "hb": "#529D49"
+        "core": "#BD4B4B",
+        "mb": "#567199",
+        "hb": "#6B9455"
     }
     band_names = {'core': 'Core', 'mb': 'MB', 'hb': 'HB'}
     priority = {"core": 3, "mb": 2, "hb": 1}
@@ -62,7 +57,7 @@ def plot_band_latents(bands, projection='tsne'):
             zorder=priority[band_name]  # Set zorder based on priority
         )
 
-    # plt.xlim([-27, 27])
+    plt.grid(True, linestyle="--", alpha=0.4)
     plt.legend(title="Band Entropy", loc="upper right",
         # bbox_to_anchor=(0.5, -0.1),
         # ncol=1,
