@@ -7,7 +7,7 @@ from matplotlib.colors import LinearSegmentedColormap
 from pathlib import Path
 from tqdm import tqdm
 
-CLIP_AMP = -25.
+CLIP_AMP = -35.
 
 import matplotlib
 font = {'family' : 'normal',
@@ -31,24 +31,6 @@ adobe_colors = [
 ]
 cmap_adobe = LinearSegmentedColormap.from_list("adobe", adobe_colors)
 
-fnames = [
-    "013164_chunk_4.wav",
-    "001662_chunk_2.wav",
-    "023569_chunk_5.wav",
-    # "026699_chunk_0.wav",
-    "028045_chunk_0.wav",
-    "031474_chunk_0.wav",
-    # "037246_chunk_0.wav",
-    # "045489_chunk_5.wav",
-    "060374_chunk_0.wav",
-    # "060374_chunk_2.wav",
-    "102171_chunk_2.wav",
-    # "119193_chunk_0.wav",
-    # "120128_chunk_1.wav",
-    # "136177_chunk_4.wav",
-]
-
-
 def compute_spectrogram(path, max_seconds=5):
     y, sr = librosa.load(path, sr=None)
     y = y[:sr * max_seconds]
@@ -67,7 +49,7 @@ def compute_spectrogram(path, max_seconds=5):
     return S_vis, sr
 
 
-def compare_directories_multirow_dict(dir_dict, output_path, zoom_freq=(6000, 16000), max_files=None):
+def compare_directories_multirow_dict(dir_dict, output_path, zoom_freq=(6000, 16000), max_files=None, fnames=None):
     """
     Create a single multi-row, multi-column figure comparing codecs.
     
@@ -169,16 +151,45 @@ def compare_directories_multirow_dict(dir_dict, output_path, zoom_freq=(6000, 16
 
 
 if __name__ == "__main__":
-    directories = {
-        "Input": "/N/slate/daripete/jstsp-dac/datasets/ablations_32khz/ablations_input",
-        r"HE-NAC$_{(16,0,0)}$": "/N/slate/daripete/jstsp-dac/datasets/ablations_32khz/ablations_output_[16, 0, 0]",
-        r"HE-NAC$_{(16,4,0)}$": "/N/slate/daripete/jstsp-dac/datasets/ablations_32khz/ablations_output_[16, 4, 0]",
-        r"HE-NAC$_{(16,4,2)}$": "/N/slate/daripete/jstsp-dac/datasets/ablations_32khz/ablations_output_[16, 4, 2]",
-    }
+    ablations_type = 1  # Change this to select different ablation sets
+    if ablations_type == 0:
+        directories = {
+            "Input": "/N/slate/daripete/jstsp-dac/datasets/ablations_32khz/input_ablations",
+            r"HE-NAC$_{(16,0,0)}$": "/N/slate/daripete/jstsp-dac/datasets/ablations_32khz/henac_ablations_output_[16, 0, 0]",
+            r"HE-NAC$_{(16,4,0)}$": "/N/slate/daripete/jstsp-dac/datasets/ablations_32khz/henac_ablations_output_[16, 4, 0]",
+            r"HE-NAC$_{(16,4,2)}$": "/N/slate/daripete/jstsp-dac/datasets/ablations_32khz/henac_ablations_output_[16, 4, 2]",
+        }
+        fnames = [
+            "013164_chunk_4.wav",
+            "001662_chunk_2.wav",
+            "023569_chunk_5.wav",
+            "028045_chunk_0.wav",
+            "031474_chunk_0.wav",
+            "060374_chunk_0.wav",
+            "102171_chunk_2.wav",
+        ]
+    elif ablations_type == 1:
+        directories = {
+            "Input": "/N/slate/daripete/jstsp-dac/datasets/ablations_32khz/input_ablations",
+            r"DAC$_{(31)}$": "/N/slate/daripete/jstsp-dac/datasets/ablations_32khz/dac_ablations_output_[31, 1]",
+            r"HE-AAC v1$": "/N/slate/daripete/jstsp-dac/datasets/ablations_32khz/heaac_ablations",
+            r"HE-NAC$_{(16,4,2)}$": "/N/slate/daripete/jstsp-dac/datasets/ablations_32khz/henac_ablations_output_[16, 4, 2]",
+        }
+        fnames = [
+            "026699_chunk_0.wav",
+            "037246_chunk_0.wav",
+            "045489_chunk_5.wav",
+            "060374_chunk_2.wav",
+            "119193_chunk_0.wav",
+            "120128_chunk_1.wav",
+            "136177_chunk_4.wav",
+        ]
+
 
     compare_directories_multirow_dict(
         dir_dict=directories,
-        output_path="/N/slate/daripete/jstsp-dac/plots/appendix_ablations_32khz_combined.pdf",
+        output_path=f"/N/slate/daripete/jstsp-dac/plots/appendix_ablations_32khz_combined_{ablations_type}.pdf",
         zoom_freq=(3000, 16000),
-        max_files=15  # optional
+        max_files=15,
+        fnames=fnames
     )

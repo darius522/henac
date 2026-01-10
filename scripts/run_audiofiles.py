@@ -145,11 +145,12 @@ def main(args):
     #     [[True, True], [True, True]],  # 0, 0, 2
     #     # [[True, False], [False, True]], # 18, 0, 2
     # ]
+    outpath = args.output_path if args.output_path is not None else args.model_path
     outpath_in = os.path.join(
-        args.model_path, f"audios/albations_input"
+        outpath, f"input"
     )  # _{num_codebook}")
     outpath_out = os.path.join(
-        args.model_path, f"audios/ablations_output_{num_codebook}"
+        outpath, f"output_{num_codebook}"
     )  # _{num_codebook}")
     os.makedirs(outpath_in, exist_ok=True)
     os.makedirs(outpath_out, exist_ok=True)
@@ -193,7 +194,7 @@ def main(args):
         cutoffs = []
 
     resampler = julius.SplitBands(conf["sample_rate"], cutoffs=cutoffs).to("cuda")
-    duration = 5.0
+    duration = 10.0
     for i, row in tqdm(dataset.iterrows(), total=len(dataset)):
         audio = AudioSignal(row.path)
         if audio.shape[-1] < duration * conf["sample_rate"]:
@@ -273,11 +274,11 @@ def main(args):
             #         y_band.reshape(-1).cpu().detach().numpy(),
             #         samplerate=32_000,
             #     )
-            sf.write(
-                os.path.join(outpath_in, f"{fname}.wav"),
-                input_sig,
-                samplerate=conf["sample_rate"],
-            )
+            # sf.write(
+            #     os.path.join(outpath_in, f"{fname}.wav"),
+            #     input_sig,
+            #     samplerate=conf["sample_rate"],
+            # )
             sf.write(
                 os.path.join(outpath_out, f"{fname}.wav"),
                 output_sig,
@@ -337,7 +338,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/datasets/fma_32khz/fma_ablations.csv",
+        default="/N/slate/daripete/jstsp-dac/datasets/fma_32khz/fma_test_subset.csv",
         required=False,
     )
     parser.add_argument(
@@ -349,7 +350,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--output-path",
         type=str,
-        default=None,
+        default="/N/slate/daripete/jstsp-dac/datasets/mushra_32khz",
         required=False,
     )
     parser.add_argument('--num_codebooks', type=str, required=True, 
