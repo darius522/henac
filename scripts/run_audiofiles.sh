@@ -11,7 +11,7 @@
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=8
-#SBATCH --time=01:00:00
+#SBATCH --time=00:10:00
 #SBATCH --mem=40G
 #SBATCH -A r00105
 
@@ -23,6 +23,6 @@ CODE_ROOT="$PWD"
 # [27, 1]
 # [25, 1]
 # [22, 1]
-# [20, 1]
+# [21, 1]
 # [18, 1]
-python scripts/run_audiofiles.py --num_codebooks "[21,1]"
+python scripts/run_audiofiles.py --num_codebooks "[31,1]"

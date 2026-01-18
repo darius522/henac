@@ -110,9 +110,10 @@ def main(args):
     dataset = pd.read_csv(args.dataset)[:1000]
     all_codes, snrs, fnames = [], [], []
 
-    outpath_in = os.path.join(args.model_path, "audios/input")
+    outpath = args.output_path if args.output_path is not None else args.model_path
+    outpath_in = os.path.join(outpath, "input")
     outpath_out = os.path.join(
-        args.model_path, f"audios/output_{num_codebook}"
+        outpath, f"output_{num_codebook}"
     )
     os.makedirs(outpath_in, exist_ok=True)
     os.makedirs(outpath_out, exist_ok=True)
@@ -128,7 +129,7 @@ def main(args):
     model.eval()
     model.to("cuda")
 
-    duration = 5.0
+    duration = 10.0
 
     for i, row in tqdm(dataset.iterrows(), total=len(dataset)):
         audio = AudioSignal(row.path)
@@ -201,7 +202,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/datasets/fma_32khz/fma_test.csv",
+        default="/N/slate/daripete/jstsp-dac/datasets/fma_32khz/fma_test_subset.csv",
         required=False,
     )
     parser.add_argument(
@@ -213,7 +214,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--output-path",
         type=str,
-        default=None,
+        default="/N/slate/daripete/jstsp-dac/datasets/mushra_32khz",
         required=False,
     )
     parser.add_argument('--num_codebooks', type=str, required=True, 
