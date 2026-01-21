@@ -11,9 +11,9 @@ def run_stage1(ckpt_path):
 
     skip_args = dict(
         codebook_dim=4096,
-        n_codebooks=4,
-        encoder_rates=[5],
-        decoder_rates=[5],
+        n_codebooks=2,
+        encoder_rates=[3],
+        decoder_rates=[3],
         quantizer_dropout=0.0,
         gumbel_softmax=False,
         diff_entropy=False,
@@ -40,7 +40,7 @@ def run_stage1(ckpt_path):
     state_dict.update(keys['decoder'])
     missing_keys, unexpected_keys = generator.load_state_dict(state_dict, strict=True)
 
-    sig = torch.randn((1, 1, 32_000))
+    sig = torch.randn((1, 1, 24_000))
     out1 = generator(sig)
     multidec_audio = out1['audio']
     dec_audio = generator.decode(out1['z'])
@@ -60,18 +60,18 @@ def run_stage2(ckpt_path):
     skip_args = {
         0: dict(
             codebook_dim=4096,
-            n_codebooks=4,
-            encoder_rates=[5],
-            decoder_rates=[5],
+            n_codebooks=2,
+            encoder_rates=[3],
+            decoder_rates=[3],
             quantizer_dropout=0.0,
             gumbel_softmax=False,
             diff_entropy=False,
         ),
         1: dict(
             codebook_dim=16384,
-            n_codebooks=2,
-            encoder_rates=[16],
-            decoder_rates=[16],
+            n_codebooks=1,
+            encoder_rates=[6],
+            decoder_rates=[6],
             quantizer_dropout=0.0,
             gumbel_softmax=False,
             diff_entropy=False,

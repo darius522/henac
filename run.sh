@@ -2,7 +2,7 @@
 
 #SBATCH -J mb
 #SBATCH -p hopper
-#SBATCH --qos=hopper
+#SBATCH -q hopper
 #SBATCH -o /N/slate/daripete/jstsp-dac/logs/%j.out
 #SBATCH -e /N/slate/daripete/jstsp-dac/logs/%j.err
 #SBATCH --mail-type=ALL
@@ -11,7 +11,7 @@
 #SBATCH --gres=gpu:4
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=8
-#SBATCH --time=48:00:00
+#SBATCH --time=24:00:00
 #SBATCH --mem=40G
 #SBATCH -A r00105
 
@@ -19,8 +19,8 @@ conda activate /N/slate/daripete/anaconda3/envs/dac
 
 CODE_ROOT="$PWD"
 
-CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun \
+CUDA_VISIBLE_DEVICES=0,1 torchrun \
                     --nproc_per_node gpu scripts/train.py \
-                    --args.load conf/final/32khz_mb.yml \
+                    --args.load conf/final/24khz_mb.yml \
                     --seed 1 \
-                    --save_path runs_32khz/mb_32_1cb_4_1cb_fr_80_320 \
+                    --save_path runs_24khz_bis/mb_18_1cb_2_1cb_fr_75_500

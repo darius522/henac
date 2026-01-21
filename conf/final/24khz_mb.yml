@@ -10,8 +10,8 @@ DAC.latent_dim: 1024
 DAC.n_codebooks: 18
 DAC.codebook_size: 1024
 DAC.codebook_dim: 8
-DAC.quantizer_dropout: 0.0
-DAC.min_n_codebooks: 18  # min number of cb used during dropout
+DAC.quantizer_dropout: 0.5
+DAC.min_n_codebooks: 1  # min number of cb used during dropout
 
 # Skip-specific
 DAC.skip_args:
@@ -19,11 +19,11 @@ DAC.skip_args:
   n_codebooks: 2
   encoder_rates: [3]
   decoder_rates: [3]
-  quantizer_dropout: 0.0
+  quantizer_dropout: 0.5
   gumbel_softmax: false
   diff_entropy: false
 
-resume_ckpt: '/N/slate/daripete/jstsp-dac/runs2/baseline_18cb/300k'
+resume_ckpt: '/N/slate/daripete/jstsp-dac/runs_24khz_bis/baseline_18_1cb_small_fr_75/300k'
 decoder_frozen: false
 
 # Discriminator
@@ -115,7 +115,7 @@ train/build_dataset.folders:
   #   - /data/russian_speech/
   #   - /data/spanish_speech/
   music_hq:
-    - /N/slate/daripete/jstsp-dac/datasets/fma_train.csv
+    - /N/slate/daripete/jstsp-dac/datasets/fma_24khz/fma_train.csv
   # music_uq:
   #   - /data/jamendo
   # general:
@@ -126,10 +126,10 @@ val/build_dataset.folders:
   # speech_hq:
   #   - /data/daps/val
   music_hq:
-    - /N/slate/daripete/jstsp-dac/datasets/fma_valid.csv
+    - /N/slate/daripete/jstsp-dac/datasets/fma_24khz/fma_valid.csv
   # general:
   #   - /data/audioset/data/eval_segments/
 
 test/build_dataset.folders:
   music_hq:
-    - /N/slate/daripete/jstsp-dac/fma_test.csv
+    - /N/slate/daripete/jstsp-dac/datasets/fma_24khz/fma_test.csv
