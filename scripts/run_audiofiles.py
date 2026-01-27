@@ -266,7 +266,7 @@ def main(args):
             
             input_sig = signal.audio_data.reshape(-1).cpu().detach().numpy()
             output_sig = mb_rec.reshape(-1)
-            output_sig = match_rms(input_sig, output_sig)
+            # output_sig = match_rms(input_sig, output_sig)
 
             # for k, y_band in y_bands.items():
             #     sf.write(
@@ -274,11 +274,11 @@ def main(args):
             #         y_band.reshape(-1).cpu().detach().numpy(),
             #         samplerate=32_000,
             #     )
-            # sf.write(
-            #     os.path.join(outpath_in, f"{fname}.wav"),
-            #     input_sig,
-            #     samplerate=conf["sample_rate"],
-            # )
+            sf.write(
+                os.path.join(outpath_in, f"{fname}.wav"),
+                input_sig,
+                samplerate=conf["sample_rate"],
+            )
             sf.write(
                 os.path.join(outpath_out, f"{fname}.wav"),
                 output_sig,
@@ -338,19 +338,19 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/datasets/fma_32khz/fma_test_subset.csv",
+        default="/N/slate/daripete/jstsp-dac/datasets/fma_24khz/fma_mushra.csv",
         required=False,
     )
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs_32khz/hb_16cb_4_1cb_2_1cb_fr_80_320_500/300k",
+        default="/N/slate/daripete/jstsp-dac/runs_24khz_bis/hb_18_1cb_2_1cb_1cb_fr_75_500_1000/300k",
         required=False,
     )
     parser.add_argument(
         "--output-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/datasets/mushra_32khz",
+        default="/N/slate/daripete/jstsp-dac/datasets/mushra_24khz",
         required=False,
     )
     parser.add_argument('--num_codebooks', type=str, required=True, 

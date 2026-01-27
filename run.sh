@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH -J mb
+#SBATCH -J hb
 #SBATCH -p hopper
 #SBATCH -q hopper
 #SBATCH -o /N/slate/daripete/jstsp-dac/logs/%j.out
@@ -19,7 +19,7 @@ conda activate /N/slate/daripete/anaconda3/envs/dac
 
 CODE_ROOT="$PWD"
 
-CUDA_VISIBLE_DEVICES=0,1 torchrun \
+CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun \
                     --nproc_per_node gpu scripts/train.py \
                     --args.load conf/final/24khz_hb.yml \
                     --seed 1 \

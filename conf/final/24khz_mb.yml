@@ -18,11 +18,11 @@ DAC.skip_args:
   n_codebooks: 2
   encoder_rates: [3]
   decoder_rates: [3]
-  quantizer_dropout: 0.0
+  quantizer_dropout: 0.5
   gumbel_softmax: false
   diff_entropy: false
 
-resume_ckpt: '/N/slate/daripete/jstsp-dac/runs/baseline3/300k'
+resume_ckpt: '/N/slate/daripete/jstsp-dac/runs_24khz_bis/baseline_18_1cb_small_fr_75/300k'
 decoder_frozen: false
 
 # Discriminator
