@@ -203,7 +203,7 @@ class ResidualVectorQuantize(nn.Module):
             n_dropout = int(z.shape[0] * self.quantizer_dropout)
             n_quantizers[:n_dropout] = dropout[:n_dropout]
             n_quantizers = n_quantizers.to(z.device)
-
+        
         for i, quantizer in enumerate(self.quantizers):
             if self.training is False and i >= n_quantizers:
                 break
