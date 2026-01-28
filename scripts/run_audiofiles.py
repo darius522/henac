@@ -344,7 +344,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs_24khz_bis/hb_18_1cb_2_1cb_1cb_fr_75_500_1000/300k",
+        default="/N/slate/daripete/jstsp-dac/runs_24khz_bis/hb_18_1cb_2cb_1cb_fr_75_500_1000/latest",
         required=False,
     )
     parser.add_argument(
