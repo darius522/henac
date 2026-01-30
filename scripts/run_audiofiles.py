@@ -202,19 +202,19 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/datasets/fma_32khz/fma_test_subset.csv",
+        default="/N/slate/daripete/jstsp-dac/datasets/fma_24khz/fma_mushra.csv",
         required=False,
     )
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs_32khz/baseline_32_1cb_xlarge_fr_80/300k",
+        default="/N/slate/daripete/jstsp-dac/runs_24khz_bis/baseline_32_1cb_large_fr_75/300k",
         required=False,
     )
     parser.add_argument(
         "--output-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/datasets/mushra_32khz",
+        default="/N/slate/daripete/jstsp-dac/datasets/mushra_24khz",
         required=False,
     )
     parser.add_argument('--num_codebooks', type=str, required=True, 

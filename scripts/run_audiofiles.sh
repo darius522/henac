@@ -25,4 +25,4 @@ CODE_ROOT="$PWD"
 # [22, 1]
 # [21, 1]
 # [18, 1]
-python scripts/run_audiofiles.py --num_codebooks "[31,1]"
+python scripts/run_audiofiles.py --num_codebooks "[32,1]"

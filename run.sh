@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH -J bsline_small
+#SBATCH -J bsline_large
 #SBATCH -p hopper
 #SBATCH -q hopper
 #SBATCH -o /N/slate/daripete/jstsp-dac/logs/%j.out
@@ -11,7 +11,7 @@
 #SBATCH --gres=gpu:4
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=8
-#SBATCH --time=24:00:00
+#SBATCH --time=20:00:00
 #SBATCH --mem=40G
 #SBATCH -A r00105
 
@@ -21,6 +21,6 @@ CODE_ROOT="$PWD"
 
 CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun \
                     --nproc_per_node gpu scripts/train.py \
-                    --args.load conf/final/24khz_baseline_small.yml \
+                    --args.load conf/final/24khz_baseline_large.yml \
                     --seed 1 \
-                    --save_path runs_24khz_bis/baseline_18_1cb_small_fr_75
+                    --save_path runs_24khz_bis/baseline_32_1cb_large_fr_75
