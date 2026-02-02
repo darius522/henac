@@ -23,4 +23,4 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun \
                     --nproc_per_node gpu scripts/train.py \
                     --args.load conf/final/24khz_mb.yml \
                     --seed 1 \
-                    --save_path runs_24khz_bis/mb_18_1cb_2cb_fr_75_500
+                    --save_path runs_24khz_bis/mb_18cb_2_1cb_fr_75_500

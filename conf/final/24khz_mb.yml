@@ -19,7 +19,7 @@ DAC.skip_args:
   n_codebooks: 2
   encoder_rates: [3]
   decoder_rates: [3]
-  quantizer_dropout: 0.0
+  quantizer_dropout: 0.5
   gumbel_softmax: false
   diff_entropy: false
 

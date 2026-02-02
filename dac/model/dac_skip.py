@@ -79,10 +79,10 @@ class DACSkip(nn.Module):
     def __init__(
         self,
         encoder_dim: int = 256,
-        encoder_rates: List[int] = [3],
+        encoder_rates: List[int] = [5],
         latent_dim: int = 256,
         decoder_dim: int = 1024,
-        decoder_rates: List[int] = [3],
+        decoder_rates: List[int] = [5],
         n_codebooks: int = 2,
         codebook_size: int = 1024,
         codebook_dim: Union[int, list] = 4096,

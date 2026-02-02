@@ -128,7 +128,7 @@ class MergerDecoderBlock(nn.Module):
         
     def forward(self, x_skip, x_blind):
         mn = min(x_skip.shape[-1], x_blind.shape[-1])
-        return self.blind(x_blind[..., :mn])# + self.skip(x_skip[..., :mn])
+        return self.blind(x_blind[..., :mn]) + self.skip(x_skip[..., :mn])
 
 
 class DecoderBlock(nn.Module):
@@ -214,15 +214,15 @@ class DAC(BaseModel, CodecMixin):
     def __init__(
         self,
         encoder_dim: int = 64,
-        encoder_rates: List[int] = [2, 2, 4, 20],
+        encoder_rates: List[int] = [2, 2, 5, 20],
         latent_dim: int = None,
         decoder_dim: int = 1536,
-        decoder_rates: List[int] = [20, 4, 2, 2],
+        decoder_rates: List[int] = [20, 5, 2, 2],
         n_codebooks: int = 32,
         codebook_size: int = 1024,
         codebook_dim: Union[int, list] = 8,
         quantizer_dropout: bool = False,
-        sample_rate: int = 24_000,
+        sample_rate: int = 32_000,
         skip_args: dict = dict(),
         min_n_codebooks: int = 1,
     ):
