@@ -344,13 +344,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs_24khz_bis/hb_18_1cb_2cb_1cb_fr_75_500_1000/latest",
+        default="/N/slate/daripete/jstsp-dac/runs_24khz_bis/hb_18_1cb_2cb_1cb_fr_75_500_1000/300k",
         required=False,
     )
     parser.add_argument(
         "--output-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/datasets/mushra_24khz",
+        default="/N/slate/daripete/jstsp-dac/runs_24khz_bis/hb_18_1cb_2cb_1cb_fr_75_500_1000/mushra",
         required=False,
     )
     parser.add_argument('--num_codebooks', type=str, required=True, 

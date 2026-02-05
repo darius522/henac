@@ -7,11 +7,11 @@ DAC.decoder_rates: [20, 5, 2, 2]
 DAC.latent_dim: 1024
 
 # Quantization
-DAC.n_codebooks: 32
+DAC.n_codebooks: 16
 DAC.codebook_size: 1024
 DAC.codebook_dim: 8
-DAC.quantizer_dropout: 0.5
-DAC.min_n_codebooks: 1  # min number of cb used during dropout
+DAC.quantizer_dropout: 0.0
+DAC.min_n_codebooks: 16  # min number of cb used during dropout
 
 # Skip-specific
 DAC.skip_args:
@@ -20,7 +20,7 @@ DAC.skip_args:
     n_codebooks: 4
     encoder_rates: [5]
     decoder_rates: [5]
-    quantizer_dropout: 0.5
+    quantizer_dropout: 0.0
     gumbel_softmax: false
     diff_entropy: false
   1:
@@ -32,7 +32,7 @@ DAC.skip_args:
     gumbel_softmax: false
     diff_entropy: false
 
-resume_ckpt: '/N/slate/daripete/jstsp-dac/runs_32khz/mb_32_1cb_4_1cb_fr_80_320/300k'
+resume_ckpt: '/N/slate/daripete/jstsp-dac/runs_32khz_bis/mb_16_1cb_4_1cb_fr_75_320/300k'
 decoder_frozen: false
 
 # Discriminator

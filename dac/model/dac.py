@@ -222,7 +222,7 @@ class DAC(BaseModel, CodecMixin):
         codebook_size: int = 1024,
         codebook_dim: Union[int, list] = 8,
         quantizer_dropout: bool = False,
-        sample_rate: int = 24_000,
+        sample_rate: int = 32_000,
         skip_args: dict = dict(),
         min_n_codebooks: int = 1,
     ):
