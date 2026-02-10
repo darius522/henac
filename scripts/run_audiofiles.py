@@ -276,12 +276,12 @@ def main(args):
             #     )
             sf.write(
                 os.path.join(outpath_in, f"{fname}.wav"),
-                input_sig,
+                np.column_stack((input_sig, input_sig)),
                 samplerate=conf["sample_rate"],
             )
             sf.write(
                 os.path.join(outpath_out, f"{fname}.wav"),
-                output_sig,
+                np.column_stack((output_sig, output_sig)),
                 samplerate=conf["sample_rate"],
             )
 
@@ -300,7 +300,7 @@ def main(args):
             all_feats[k] = np.concatenate(v, -1)
 
     # plot_codebook_indices({k: np.concatenate(v, -1) for k, v in all_codes.items()})
-    plot_band_latents(feats, projection='umap')
+    # plot_band_latents(feats, projection='umap')
 
     bitrates = dict()
     for k, v in all_codes.items():
@@ -338,19 +338,19 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/datasets/fma_24khz/fma_mushra.csv",
+        default="/N/slate/daripete/jstsp-dac/datasets/fma_32khz/fma_mushra.csv",
         required=False,
     )
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs_24khz_bis/hb_18_1cb_2cb_1cb_fr_75_500_1000/300k",
+        default="/N/slate/daripete/jstsp-dac/runs_32khz_bis/hb_16_1cb_4_1cb_2_1cb_wild_fr_75_320_500/300k",
         required=False,
     )
     parser.add_argument(
         "--output-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs_24khz_bis/hb_18_1cb_2cb_1cb_fr_75_500_1000/mushra",
+        default="/N/slate/daripete/jstsp-dac/runs_32khz_bis/hb_16_1cb_4_1cb_2_1cb_wild_fr_75_320_500/mushra",
         required=False,
     )
     parser.add_argument('--num_codebooks', type=str, required=True, 
