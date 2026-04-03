@@ -1,4 +1,5 @@
 # %%
+import os
 import numpy as np
 from matplotlib import pyplot as plt
 import matplotlib
@@ -8,29 +9,38 @@ import seaborn as sns
 from matplotlib.patches import Patch
 
 trial_colors = {
-    "trial1": "#b00303",
+    "trial1": "#000000",
     "trial2": "#000000",
     "trial3": "#000000",
-    "trial4": "#b00303",
+    "trial4": "#000000",
     "trial5": "#000000",
-    "trial6": "#b00303",
+    "trial6": "#000000",
     "trial7": "#000000",
-    "trial8": "#b00303",
+    "trial8": "#000000",
     "trial9": "#000000",
-    "trial10": "#b00303",
+    "trial10": "#000000",
     "trial11": "#000000",
-    "trial12": "#b00303",
+    "trial12": "#000000",
 }
 
 
-pretty_names = {'C1':r"$\text{DAC}_{(29)}$",
-                'C2':r"$\text{HE-NAC}_{(24, 2)}$",
-                'C3':r"$\text{HE-NAC}_{(18, 2, 1)}$",
-                'C4':r"$\mathbf{HE-AAC}$",
+pretty_names = {'C1':r"$\text{DAC}_{(31)}$",
+                'C2':r"$\text{HE-NAC}_{(18,4,0)}$",
+                'C3':r"$\text{HE-NAC}_{(18,4,2)}$",
+                'C4':r"$\text{HE-AAC v1}$",
                 'reference':r"Hidden Ref.",
                 'anchor35':r"Anchor - 3.5kHz"}
+names = ['reference','C3','C4','C2','C1','anchor35']
+path = './mushra_32khz.json'
 
-def plotBoxMetrics(results, plotTitle=''):
+# pretty_names = {'C1':r"$\text{HE-NAC}_{(18,2,1)}$",
+#                 'C2':r"$\text{HE-AAC}$",
+#                 'reference':r"Hidden Ref.",
+#                 'anchor35':r"Anchor - 3.5kHz"}
+# names = ['reference','C1','C2','anchor35']
+# path = './mushra_24khz.json'
+
+def plotBoxMetrics(results, path):
 
 	font = {'family' : 'normal',
 		'size'   : 30}
@@ -41,7 +51,6 @@ def plotBoxMetrics(results, plotTitle=''):
 	matplotlib.rcParams['axes.unicode_minus'] = False
 
 	f = plt.figure(figsize=(12,10))
-	names = ['reference','C4','C3','C2','C1','anchor35']
 	xs     = []
 	vals   = []
 	colors = []
@@ -104,23 +113,29 @@ def plotBoxMetrics(results, plotTitle=''):
 	plt.ylabel('Subjective Score')
 	plt.xticks(np.arange(len(real_names))+1, real_names, rotation=45)
 	plt.tight_layout()
-	plt.savefig('/N/slate/daripete/jstsp-dac/plots/mushra.png')
-	plt.savefig('/N/slate/daripete/jstsp-dac/plots/mushra.pdf')
+	plt.savefig(f"/N/slate/daripete/jstsp-dac/plots/{os.path.basename(path).replace('.json', '_7.pdf')}")
+	plt.savefig(f"/N/slate/daripete/jstsp-dac/plots/{os.path.basename(path).replace('.json', '_7.png')}")
 
 
-def plot_mushra():
+def plot_mushra(path):
 	stimuli = ['C1','C2','C3','C4','reference','anchor35']
 	results = {i:[] for i in stimuli}
-	path = './mushra.json'
 	with open(path) as json_file:
 		data = json.load(json_file)
 
 	participant_ids = list(data.keys())
+	under_100 = {}
 	for p_id in participant_ids:
 		all_trials = json.loads(data[p_id])['trials']
+		under_100[p_id] = []
 		for trials in all_trials: 
 			for trial in trials['responses']:
-					results[trial['stimulus']].append((trial['score'], trial_colors[trials['id']]))
-	plotBoxMetrics(results)
+				if trial['stimulus'] == 'reference':
+					under_100[p_id].append(trial['score'])
+				results[trial['stimulus']].append((trial['score'], trial_colors[trials['id']]))
+	print(under_100)
+	plotBoxMetrics(results, path)
 
-plot_mushra()
+plot_mushra(path)
+print('Plotted!')
+# %%

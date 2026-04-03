@@ -129,7 +129,7 @@ def main(args):
     model.eval()
     model.to("cuda")
 
-    duration = 10.0
+    duration = 5.0
 
     for i, row in tqdm(dataset.iterrows(), total=len(dataset)):
         audio = AudioSignal(row.path)
@@ -151,21 +151,21 @@ def main(args):
                 all_codes.append(codes.squeeze(0).detach().cpu().numpy())
 
                 y, signal = y.to("cpu").detach(), signal.audio_data.to("cpu").detach()
-                y = y / torch.max(torch.abs(y)) * 0.99  # prevent clipping
+                # y = y / torch.max(torch.abs(y)) * 0.99  # prevent clipping
                 snrs.append(ScaleInvariantSignalNoiseRatio().to("cpu")(y, signal))
                 
                 input_sig = signal.reshape(-1).numpy()
                 output_sig = y.reshape(-1).numpy()
-                output_sig = match_rms(input_sig, output_sig)
+                # output_sig = match_rms(input_sig, output_sig)
 
-                # sf.write(
-                #     os.path.join(outpath_in, f"{fname}.wav"),
-                #     input_sig,
-                #     samplerate=conf_dict["sample_rate"],
-                # )
+                sf.write(
+                    os.path.join(outpath_in, f"{fname}.wav"),
+                    np.column_stack((input_sig, input_sig)),
+                    samplerate=conf_dict["sample_rate"],
+                )
                 sf.write(
                     os.path.join(outpath_out, f"{fname}.wav"),
-                    output_sig,
+                    np.column_stack((output_sig, output_sig)),
                     samplerate=conf_dict["sample_rate"],
                 )
 
@@ -202,23 +202,23 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/datasets/fma_24khz/fma_mushra.csv",
+        default="/N/slate/daripete/jstsp-dac/datasets/fma_32khz/fma_mushra.csv",
         required=False,
     )
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs_24khz_bis/baseline_32_1cb_large_fr_75/300k",
+        default="/N/slate/daripete/jstsp-dac/runs_32khz/baseline_32_1cb_xlarge_fr_80/300k",
         required=False,
     )
     parser.add_argument(
         "--output-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/datasets/mushra_24khz",
+        default="/N/slate/daripete/jstsp-dac/runs_32khz/baseline_32_1cb_xlarge_fr_80/",
         required=False,
     )
     parser.add_argument('--num_codebooks', type=str, required=True, 
-                    help='List of integers, e.g. "[31, 1]"')
+                    help='List of integers, e.g. "[32, 1]"')
     args = parser.parse_args()
 
     main(args)
