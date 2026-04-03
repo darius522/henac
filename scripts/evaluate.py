@@ -72,8 +72,8 @@ def get_metrics(signal_path, recons_path, state, idx):
 @argbind.bind(without_prefix=True)
 @torch.no_grad()
 def evaluate(
-    input: str = "/N/slate/daripete/jstsp-dac/runs_32khz/hb_16cb_4_1cb_2_1cb_fr_80_320_500/300k/audios/input",
-    output: str = "/N/slate/daripete/jstsp-dac/runs_32khz/hb_16cb_4_1cb_2_1cb_fr_80_320_500/300k/audios/output_[16, 1, 0]_14kbps",
+    input: str = "/N/slate/daripete/jstsp-dac/runs_32khz_bis/hb_16_1cb_4_1cb_2_1cb_wild_fr_75_320_500/objective/input",
+    output: str = "/N/slate/daripete/jstsp-dac/runs_32khz_bis/hb_16_1cb_4_1cb_2_1cb_wild_fr_75_320_500/objective/output_[16, 4, 2]_23kbps",
     n_proc: int = 64,
 ):
     tracker = Tracker()

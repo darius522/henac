@@ -233,16 +233,16 @@ def main(args):
                 codes = {
                     k: v for k, v, keep in zip(keys, codes.values(), keep_mask) if keep
                 }
-                feats = {
-                    k: v for k, v, keep in zip(keys, feats.values(), keep_mask) if keep
-                }
+                # feats = {
+                #     k: v for k, v, keep in zip(keys, feats.values(), keep_mask) if keep
+                # }
 
             for k, c in codes.items():  # k, [B, CB, T]
                 nc, fr = c.shape[1], int(c.shape[-1] // duration)
                 all_codes[k].append(c.squeeze(0).detach().cpu().numpy())
 
-            for k, c in feats.items():  # k, [B, CB, T]
-                all_feats[k].append(c.squeeze(0).detach().cpu().numpy())
+            # for k, c in feats.items():  # k, [B, CB, T]
+            #     all_feats[k].append(c.squeeze(0).detach().cpu().numpy())
 
             signal_bands = resampler(signal.audio_data)
 
@@ -274,11 +274,11 @@ def main(args):
             #         y_band.reshape(-1).cpu().detach().numpy(),
             #         samplerate=32_000,
             #     )
-            sf.write(
-                os.path.join(outpath_in, f"{fname}.wav"),
-                np.column_stack((input_sig, input_sig)),
-                samplerate=conf["sample_rate"],
-            )
+            # sf.write(
+            #     os.path.join(outpath_in, f"{fname}.wav"),
+            #     np.column_stack((input_sig, input_sig)),
+            #     samplerate=conf["sample_rate"],
+            # )
             sf.write(
                 os.path.join(outpath_out, f"{fname}.wav"),
                 np.column_stack((output_sig, output_sig)),
@@ -295,9 +295,9 @@ def main(args):
             torch.cuda.empty_cache()
             gc.collect()
 
-    for k, v in all_feats.items():
-        if len(v) > 0:
-            all_feats[k] = np.concatenate(v, -1)
+    # for k, v in all_feats.items():
+    #     if len(v) > 0:
+    #         all_feats[k] = np.concatenate(v, -1)
 
     # plot_codebook_indices({k: np.concatenate(v, -1) for k, v in all_codes.items()})
     # plot_band_latents(feats, projection='umap')
@@ -338,7 +338,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/datasets/fma_32khz/fma_mushra.csv",
+        default="/N/slate/daripete/jstsp-dac/datasets/fma_32khz/fma_test.csv",
         required=False,
     )
     parser.add_argument(
@@ -350,7 +350,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--output-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs_32khz_bis/hb_16_1cb_4_1cb_2_1cb_wild_fr_75_320_500/mushra",
+        default="/N/slate/daripete/jstsp-dac/runs_32khz_bis/hb_16_1cb_4_1cb_2_1cb_wild_fr_75_320_500/objective",
         required=False,
     )
     parser.add_argument('--num_codebooks', type=str, required=True, 
