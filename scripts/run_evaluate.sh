@@ -19,10 +19,12 @@ conda activate /N/slate/daripete/anaconda3/envs/dac
 
 CODE_ROOT="$PWD"
 
-# output_[16, 1, 0]_14kbps
-# output_[16, 2, 0]_16kbps
-# output_[16, 3, 0]_17kbps
-# output_[16, 4, 0]_19kbps
-# output_[16, 4, 1]_21kbps
-# output_[16, 4, 2]_24kbps
-python -u scripts/evaluate.py --input "/N/slate/daripete/jstsp-dac/runs_32khz/baseline_32_1cb_xlarge_fr_80/300k/audios/input" --output "/N/slate/daripete/jstsp-dac/runs_32khz/baseline_32_1cb_xlarge_fr_80/300k/audios/output_[31, 1]_24kbps" --n_proc 8
+# "/N/slate/daripete/jstsp-dac/runs_32khz/baseline_32_1cb_xlarge_fr_80/objective/input"
+# "/N/slate/daripete/jstsp-dac/runs_32khz/baseline_32_1cb_xlarge_fr_80/objective/output_[24, 1]_18kbps"
+# "/N/slate/daripete/jstsp-dac/runs_32khz/baseline_32_1cb_xlarge_fr_80/objective/output_[31, 1]_23kbps"
+
+# "/N/slate/daripete/jstsp-dac/runs_32khz_bis/hb_16_1cb_4_1cb_2_1cb_wild_fr_75_320_500/objective/input"
+# "/N/slate/daripete/jstsp-dac/runs_32khz_bis/hb_16_1cb_4_1cb_2_1cb_wild_fr_75_320_500/objective/output_[16, 4, 0]_18kbps"
+# "/N/slate/daripete/jstsp-dac/runs_32khz_bis/hb_16_1cb_4_1cb_2_1cb_wild_fr_75_320_500/objective/output_[16, 4, 2]_23kbps"
+
+python -u scripts/evaluate.py --input "/N/slate/daripete/jstsp-dac/runs_32khz_bis/hb_16_1cb_4_1cb_2_1cb_wild_fr_75_320_500/objective/input" --output "/N/slate/daripete/jstsp-dac/runs_32khz_bis/hb_16_1cb_4_1cb_2_1cb_wild_fr_75_320_500/objective/output_[16, 4, 2]_23kbps" --n_proc 8
