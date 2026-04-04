@@ -11,7 +11,7 @@
 #SBATCH --gres=gpu:1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=8
-#SBATCH --time=02:00:00
+#SBATCH --time=00:30:00
 #SBATCH --mem=40G
 #SBATCH -A r00105
 
@@ -19,4 +19,4 @@ conda activate /N/slate/daripete/anaconda3/envs/dac
 
 CODE_ROOT="$PWD"
 
-python scripts/run_audiofiles.py --num_codebooks "[16,4,2]"
+python scripts/run_audiofiles.py --num_codebooks "[16,4,1]"

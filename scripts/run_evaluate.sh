@@ -27,4 +27,14 @@ CODE_ROOT="$PWD"
 # "/N/slate/daripete/jstsp-dac/runs_32khz_bis/hb_16_1cb_4_1cb_2_1cb_wild_fr_75_320_500/objective/output_[16, 4, 0]_18kbps"
 # "/N/slate/daripete/jstsp-dac/runs_32khz_bis/hb_16_1cb_4_1cb_2_1cb_wild_fr_75_320_500/objective/output_[16, 4, 2]_23kbps"
 
-python -u scripts/evaluate.py --input "/N/slate/daripete/jstsp-dac/runs_32khz_bis/hb_16_1cb_4_1cb_2_1cb_wild_fr_75_320_500/objective/input" --output "/N/slate/daripete/jstsp-dac/runs_32khz_bis/hb_16_1cb_4_1cb_2_1cb_wild_fr_75_320_500/objective/output_[16, 4, 2]_23kbps" --n_proc 8
+
+# "/N/slate/daripete/jstsp-dac/runs_32khz/baseline_32_1cb_large_fr_80/objective/output_[31, 1]_23kbps"
+# "/N/slate/daripete/jstsp-dac/runs_32khz/baseline_32_1cb_small_fr_80/objective/output_[31, 1]_23kbps"
+
+# "/N/slate/daripete/jstsp-dac/runs_32khz_bis/hb_16_1cb_4_1cb_2_1cb_wild_fr_75_320_500/objective/output_[16, 1, 0]_13kbps"
+# "/N/slate/daripete/jstsp-dac/runs_32khz_bis/hb_16_1cb_4_1cb_2_1cb_wild_fr_75_320_500/objective/output_[16, 2, 0]_15kbps"
+# "/N/slate/daripete/jstsp-dac/runs_32khz_bis/hb_16_1cb_4_1cb_2_1cb_wild_fr_75_320_500/objective/output_[16, 3, 0]_16kbps"
+# "/N/slate/daripete/jstsp-dac/runs_32khz_bis/hb_16_1cb_4_1cb_2_1cb_wild_fr_75_320_500/objective/output_[16, 4, 1]_20kbps"
+
+
+python -u scripts/evaluate.py --input "/N/slate/daripete/jstsp-dac/runs_32khz_bis/hb_16_1cb_4_1cb_2_1cb_wild_fr_75_320_500/objective/input" --output "/N/slate/daripete/jstsp-dac/runs_32khz_bis/hb_16_1cb_4_1cb_2_1cb_wild_fr_75_320_500/objective/output_[16, 4, 1]_20kbps" --n_proc 8
