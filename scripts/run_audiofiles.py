@@ -158,11 +158,11 @@ def main(args):
                 output_sig = y.reshape(-1).numpy()
                 # output_sig = match_rms(input_sig, output_sig)
 
-                sf.write(
-                    os.path.join(outpath_in, f"{fname}.wav"),
-                    np.column_stack((input_sig, input_sig)),
-                    samplerate=conf_dict["sample_rate"],
-                )
+                # sf.write(
+                #     os.path.join(outpath_in, f"{fname}.wav"),
+                #     np.column_stack((input_sig, input_sig)),
+                #     samplerate=conf_dict["sample_rate"],
+                # )
                 sf.write(
                     os.path.join(outpath_out, f"{fname}.wav"),
                     np.column_stack((output_sig, output_sig)),
@@ -208,13 +208,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs_32khz/baseline_32_1cb_small_fr_80/300k",
+        default="/N/slate/daripete/jstsp-dac/runs_32khz/baseline_32_1cb_xlarge_fr_80/300k",
         required=False,
     )
     parser.add_argument(
         "--output-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs_32khz/baseline_32_1cb_small_fr_80/objective",
+        default="/N/slate/daripete/jstsp-dac/runs_32khz/baseline_32_1cb_xlarge_fr_80/objective",
         required=False,
     )
     parser.add_argument('--num_codebooks', type=str, required=True, 

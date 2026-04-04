@@ -19,10 +19,10 @@ conda activate /N/slate/daripete/anaconda3/envs/dac
 
 CODE_ROOT="$PWD"
 
-# [31, 1]
-# [27, 1]
-# [25, 1]
-# [22, 1]
-# [21, 1]
-# [18, 1]
-python scripts/run_audiofiles.py --num_codebooks "[31,1]"
+# [31, 1] -> 23kbps
+# [27, 1] -> 20kbps
+# [24, 1] -> 18kbps
+# [22, 1] -> 16kbps
+# [20, 1] -> 15kbps
+# [18, 1] -> 13kbps
+python scripts/run_audiofiles.py --num_codebooks "[18,1]"
