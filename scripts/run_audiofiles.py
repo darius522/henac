@@ -129,7 +129,7 @@ def main(args):
     model.eval()
     model.to("cuda")
 
-    duration = 5.0
+    duration = 10.0
 
     for i, row in tqdm(dataset.iterrows(), total=len(dataset)):
         audio = AudioSignal(row.path)
@@ -202,19 +202,19 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/datasets/fma_32khz/fma_mushra.csv",
+        default="/N/slate/daripete/jstsp-dac/datasets/fma_32khz/fma_test.csv",
         required=False,
     )
     parser.add_argument(
         "--model-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs_32khz/baseline_32_1cb_xlarge_fr_80/300k",
+        default="/N/slate/daripete/jstsp-dac/runs_32khz/baseline_32_1cb_small_fr_80/300k",
         required=False,
     )
     parser.add_argument(
         "--output-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs_32khz/baseline_32_1cb_xlarge_fr_80/",
+        default="/N/slate/daripete/jstsp-dac/runs_32khz/baseline_32_1cb_small_fr_80/objective",
         required=False,
     )
     parser.add_argument('--num_codebooks', type=str, required=True, 
