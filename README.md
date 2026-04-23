@@ -1,189 +1,91 @@
-# Descript Audio Codec (.dac): High-Fidelity Audio Compression with Improved RVQGAN
+# HE-NAC - High Fidelity Neural Audio Coding
 
-This repository contains training and inference scripts
-for the Descript Audio Codec (.dac), a high fidelity general
-neural audio codec, introduced in the paper titled **High-Fidelity Audio Compression with Improved RVQGAN**.
+Training and experiment code forked from [Descript Audio Codec](https://github.com/descriptinc/descript-audio-codec) (RVQGAN-style neural codec). Original paper: [High-Fidelity Audio Compression with Improved RVQGAN](https://arxiv.org/abs/2306.06546).
 
-![](https://static.arxiv.org/static/browse/0.3.4/images/icons/favicon-16x16.png) [arXiv Paper: High-Fidelity Audio Compression with Improved RVQGAN
-](http://arxiv.org/abs/2306.06546) <br>
-📈 [Demo Site](https://descript.notion.site/Descript-Audio-Codec-11389fce0ce2419891d6591a68f814d5)<br>
-⚙ [Model Weights](https://github.com/descriptinc/descript-audio-codec/releases/download/0.0.1/weights.pth)
+---
 
-👉 With Descript Audio Codec, you can compress **44.1 KHz audio** into discrete codes at a **low 8 kbps bitrate**.  <br>
-🤌 That's approximately **90x compression** while maintaining exceptional fidelity and minimizing artifacts.  <br>
-💪 Our universal model works on all domains (speech, environment, music, etc.), making it widely applicable to generative modeling of all audio.  <br>
-👌 It can be used as a drop-in replacement for EnCodec for all audio language modeling applications (such as AudioLMs, MusicLMs, MusicGen, etc.) <br>
+## Branches and training stages
 
-<p align="center">
-<img src="./assets/comparsion_stats.png" alt="Comparison of compressions approaches. Our model achieves a higher compression factor compared to all baseline methods. Our model has a ~90x compression factor compared to 32x compression factor of EnCodec and 64x of SoundStream. Note that we operate at a target bitrate of 8 kbps, whereas EnCodec operates at 24 kbps and SoundStream at 6 kbps. We also operate at 44.1 kHz, whereas EnCodec operates at 48 kHz and SoundStream operates at 24 kHz." width=35%></p>
+The codec is trained in **three stages**. Each stage used to be a separate checkout; in git they are kept as **branches** so you can `git checkout <branch>` to reproduce an old run or `git diff main..<branch>` while consolidating.
 
+| Git branch | Stage (informal) | Role |
+|------------|------------------|------|
+| **`baseline_skipae`** | Stage 1 — baseline | Train the **core** codec (encoder, main residual VQ, main decoder). Skip modules may exist in the graph for layout reasons but **are not used** in `encode` / forward the same way as later stages. **Full-band** loss target. |
+| **`entropy_ctrl`** | Stage 2 — entropy / mid-band | **Resume** from stage 1: load checkpoint with **all `skip_aes.*` keys removed**, then train the **mid-band** skip (`skip_aes.0`) and its band decoder. Loss targets **mid+** bands (e.g. `SplitBands` from index 1). Core weights start from stage 1. |
+| **`entropy_ctrl_hb`** | Stage 3 — high-band | **Full** model: **two** skip AEs (`skip_aes.0` / `skip_aes.1`), **two** `multidecoders`, cascade decode (core blind → MB → HB). **Resume** from stage 2: drop only **`skip_aes.1.*`** from the checkpoint so HB starts fresh; loss targets **high** bands (e.g. from index 2). |
 
-## Usage
+**`main`** is where **ongoing development** should land: unified configs, shared `DAC`, and helpers such as `dac/training_stage.py`. Until consolidation is finished, treat the three branches above as **frozen references** for “what the code looked like when that stage was trained.”
 
-### Installation
-```
-pip install descript-audio-codec
-```
-OR
+---
 
-```
-pip install git+https://github.com/descriptinc/descript-audio-codec
-```
+## Layout (on `main`)
 
-### Weights
-Weights are released as part of this repo under MIT license.
-We release weights for models that can natively support 16 kHz, 24kHz, and 44.1kHz sampling rates.
-Weights are automatically downloaded when you first run `encode` or `decode` command. You can cache them using one of the following commands
+- **`dac/model/dac.py`** — Main `DAC`: encoder, main quantizer, main decoder, `skip_aes` (×2 on the HB-era layout), `multidecoders` (×2), `encode` / `forward` / `infer_bands`.
+- **`dac/model/dac_skip.py`** — Skip-path autoencoder (`DACSkip`) per band.
+- **`dac/training_stage.py`** — Stage → **which parameters are trainable** (`apply_stage_requires_grad`). Wire this from `scripts/train.py` + YAML when you merge behaviour onto `main`.
+- **`scripts/train.py`** — Training loop (resume filters, band slicing, discriminator, losses). Today stage-specific logic still lives here; align it with `training_stage.py` on `main`.
+- **`conf/`** — ArgBind YAML; **`conf/final/`** for end-to-end recipes; **`conf/base.yml`** for shared defaults.
+- **`resave_ckpt.py`** — Checkpoint reshape / resave between stages (legacy multi-branch workflow).
+- **`tests/test_training_stage_grads_32khz.py`** — Smoke test: HB-shaped 32 kHz `DAC`, stage masks, one backward pass; asserts **no grad on frozen** weights and **some** grad on trainable weights (not every RVQ / decoder block gets a grad on a toy scalar loss).
+
+Encode/decode CLI and Docker from upstream DAC still exist but are not the focus of this README.
+
+---
+
+## Configs and training (32 kHz)
+
+Recipes live under **`conf/final/`**. Examples:
+
+- **`32khz_mb.yml`** — Mid-band / stage-2 style settings. Ensure `DAC.skip_args` matches what **`DAC.__init__`** expects on your branch (flat dict vs `{0: …, 1: …}` for two-skip models).
+- **`32khz_hb.yml`** — Full HB model: `DAC.skip_args` with **`0:`** and **`1:`** blocks; `resume_ckpt` should point at a finished **stage-2** run; see `decoder_frozen` and trainable prefixes in `scripts/train.py`.
+
+Example:
+
 ```bash
-python3 -m dac download # downloads the default 44kHz variant
-python3 -m dac download --model_type 44khz # downloads the 44kHz variant
-python3 -m dac download --model_type 24khz # downloads the 24kHz variant
-python3 -m dac download --model_type 16khz # downloads the 16kHz variant
-```
-We provide a Dockerfile that installs all required dependencies for encoding and decoding. The build process caches the default model weights inside the image. This allows the image to be used without an internet connection. [Please refer to instructions below.](#docker-image)
-
-
-### Compress audio
-```
-python3 -m dac encode /path/to/input --output /path/to/output/codes
-```
-
-This command will create `.dac` files with the same name as the input files.
-It will also preserve the directory structure relative to input root and
-re-create it in the output directory. Please use `python -m dac encode --help`
-for more options.
-
-### Reconstruct audio from compressed codes
-```
-python3 -m dac decode /path/to/output/codes --output /path/to/reconstructed_input
-```
-
-This command will create `.wav` files with the same name as the input files.
-It will also preserve the directory structure relative to input root and
-re-create it in the output directory. Please use `python -m dac decode --help`
-for more options.
-
-### Programmatic Usage
-```py
-import dac
-from audiotools import AudioSignal
-
-# Download a model
-model_path = dac.utils.download(model_type="44khz")
-model = dac.DAC.load(model_path)
-
-model.to('cuda')
-
-# Load audio signal file
-signal = AudioSignal('input.wav')
-
-# Encode audio signal as one long file
-# (may run out of GPU memory on long files)
-signal.to(model.device)
-
-x = model.preprocess(signal.audio_data, signal.sample_rate)
-z, codes, latents, _, _ = model.encode(x)
-
-# Decode audio signal
-y = model.decode(z)
-
-# Alternatively, use the `compress` and `decompress` functions
-# to compress long files.
-
-signal = signal.cpu()
-x = model.compress(signal)
-
-# Save and load to and from disk
-x.save("compressed.dac")
-x = dac.DACFile.load("compressed.dac")
-
-# Decompress it back to an AudioSignal
-y = model.decompress(x)
-
-# Write to file
-y.write('output.wav')
-```
-
-### Docker image
-We provide a dockerfile to build a docker image with all the necessary
-dependencies.
-1. Building the image.
-    ```
-    docker build -t dac .
-    ```
-2. Using the image.
-
-    Usage on CPU:
-    ```
-    docker run dac <command>
-    ```
-
-    Usage on GPU:
-    ```
-    docker run --gpus=all dac <command>
-    ```
-
-    `<command>` can be one of the compression and reconstruction commands listed
-    above. For example, if you want to run compression,
-
-    ```
-    docker run --gpus=all dac python3 -m dac encode ...
-    ```
-
-
-## Training
-The baseline model configuration can be trained using the following commands.
-
-### Pre-requisites
-Please install the correct dependencies
-```
-pip install -e ".[dev]"
-```
-
-## Environment setup
-
-We have provided a Dockerfile and docker compose setup that makes running experiments easy.
-
-To build the docker image do:
-
-```
-docker compose build
-```
-
-Then, to launch a container, do:
-
-```
-docker compose run -p 8888:8888 -p 6006:6006 dev
-```
-
-The port arguments (`-p`) are optional, but useful if you want to launch a Jupyter and Tensorboard instances within the container. The
-default password for Jupyter is `password`, and the current directory
-is mounted to `/u/home/src`, which also becomes the working directory.
-
-Then, run your training command.
-
-
-### Single GPU training
-```
 export CUDA_VISIBLE_DEVICES=0
-python scripts/train.py --args.load conf/ablations/baseline.yml --save_path runs/baseline/
+python scripts/train.py --args.load conf/final/32khz_hb.yml --save_path runs/my_experiment/
 ```
 
-### Multi GPU training
-```
-export CUDA_VISIBLE_DEVICES=0,1
-torchrun --nproc_per_node gpu scripts/train.py --args.load conf/ablations/baseline.yml --save_path runs/baseline/
+Multi-GPU: same pattern as upstream (`torchrun … scripts/train.py …`). Set **`resume_ckpt`**, dataset paths, and lambdas in YAML to your environment.
+
+---
+
+## Install
+
+```bash
+pip install -e .
+# optional: pip install -e ".[dev]"
 ```
 
-## Testing
-We provide two test scripts to test CLI + training functionality. Please
-make sure that the trainig pre-requisites are satisfied before launching these
-tests. To launch these tests please run
-```
-python -m pytest tests
+---
+
+## Tests
+
+```bash
+python -m pytest tests/test_training_stage_grads_32khz.py -v
 ```
 
-## Results
+Other tests under `tests/` may assume local datasets or assets; run selectively if paths are missing.
 
-<p align="left">
-<img src="./assets/objective_comparisons.png" width=75%></p>
+---
+
+## Working with branches in practice
+
+1. **Daily work** — Branch off **`main`**, open PRs back to `main`.
+2. **Reproduce an old stage** — `git fetch && git checkout baseline_skipae` (or `entropy_ctrl` / `entropy_ctrl_hb`), install, run the same `scripts/train.py` + YAML that was used then.
+3. **Port a fix** — Cherry-pick or manually apply from a stage branch onto `main`, then run configs + tests on `main`.
+4. **Retire branches** — After `main` matches each stage under config flags, you can delete the old branches or leave them tagged for paper reproducibility.
+
+---
+
+## Consolidation checklist (for `main`)
+
+1. **Single codebase** — One `DAC` + YAML-selected stage (forward parity: “match today’s math” per stage first).
+2. **Wire `training_stage.py`** — `training_stage` (or similar) in YAML + `apply_stage_requires_grad` in `scripts/train.py`.
+3. **`DAC.skip_args`** — One consistent schema (e.g. `{0: …, 1: …}`) wherever the two-skip model is built.
+
+---
+
+## License
+
+Upstream DAC materials remain under the **MIT** license in `LICENSE` unless replaced by your organization.
