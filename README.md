@@ -1,3 +1,4 @@
+# ⚠️ Currently in WIP
 # HE-NAC - High Fidelity Neural Audio Coding
 
 Training and experiment code forked from [Descript Audio Codec](https://github.com/descriptinc/descript-audio-codec) (RVQGAN-style neural codec). Original paper: [High-Fidelity Audio Compression with Improved RVQGAN](https://arxiv.org/abs/2306.06546).
