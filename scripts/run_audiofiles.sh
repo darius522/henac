@@ -19,4 +19,4 @@ conda activate /N/slate/daripete/anaconda3/envs/dac
 
 CODE_ROOT="$PWD"
 
-python scripts/run_audiofiles.py --num_codebooks "[16,4,1]"
+python scripts/run_audiofiles.py --num_codebooks "[16,4,0]"

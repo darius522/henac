@@ -279,11 +279,11 @@ def main(args):
             #     np.column_stack((input_sig, input_sig)),
             #     samplerate=conf["sample_rate"],
             # )
-            sf.write(
-                os.path.join(outpath_out, f"{fname}.wav"),
-                np.column_stack((output_sig, output_sig)),
-                samplerate=conf["sample_rate"],
-            )
+            # sf.write(
+            #     os.path.join(outpath_out, f"{fname}.wav"),
+            #     np.column_stack((output_sig, output_sig)),
+            #     samplerate=conf["sample_rate"],
+            # )
 
             for k in list(codes.keys()):  # Convert to list to avoid runtime errors
                 codes[k] = codes[k].detach().cpu()
@@ -350,7 +350,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--output-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/runs_32khz_bis/hb_16_1cb_4_1cb_2_1cb_wild_fr_75_320_500/objective",
+        default="/N/slate/daripete/jstsp-dac/__tmp",
         required=False,
     )
     parser.add_argument('--num_codebooks', type=str, required=True, 
