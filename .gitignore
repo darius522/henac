@@ -178,3 +178,7 @@ recons/
 datasets/*.csv
 *.pdf
 *.ttf
+
+
+GOMPSNR/
+datasets/
