@@ -1,4 +1,5 @@
 import sys, math, ast
+import time
 
 sys.path.append("/N/slate/daripete/jstsp-dac")
 
@@ -133,6 +134,49 @@ def get_model_args(conf_path):
     }
 
 
+def infer_active_bands(model, audio_data, n_quantizers):
+    """Run only the contiguous codec paths enabled by n_quantizers."""
+    core_nq, mb_nq, hb_nq = n_quantizers
+    if core_nq <= 0:
+        raise ValueError("The core path must have at least one codebook.")
+    if hb_nq > 0 and mb_nq <= 0:
+        raise ValueError("The high-band path requires the mid-band path.")
+
+    audio_data = model.preprocess(audio_data, sample_rate=None)
+    z_core, skip_features = model.encoder(audio_data)
+    z_core, core_codes, _, _, _, _ = model.quantizer(
+        z_core, n_quantizers=core_nq
+    )
+
+    feats = {"core": z_core}
+    codes = {"core": core_codes}
+    audio = {"core": model.decode(z_core, blind_level=None)}
+
+    if mb_nq > 0:
+        mb_out = model.skip_aes[0](skip_features[1], n_quantizers=mb_nq)
+        feats["mb"] = mb_out["audio"]
+        codes["mb"] = mb_out["codes"]
+
+        core_blind = model.decode(z_core, blind_level=0)
+        audio["mb"] = model.multidecoders[0](
+            feats["mb"], blind_level=None, x_blind=core_blind
+        )
+
+    if hb_nq > 0:
+        hb_out = model.skip_aes[1](skip_features[2], n_quantizers=hb_nq)
+        feats["hb"] = hb_out["audio"]
+        codes["hb"] = hb_out["codes"]
+
+        mb_blind = model.multidecoders[0](
+            feats["mb"], blind_level=0, x_blind=core_blind
+        )
+        audio["hb"] = model.multidecoders[1](
+            feats["hb"], blind_level=None, x_blind=mb_blind
+        )
+
+    return {"audio": audio, "codes": codes, "feats": feats}
+
+
 def main(args):
 
     dataset = pd.read_csv(args.dataset)[:1000]  # Limit to 1000 samples for testing
@@ -152,8 +196,13 @@ def main(args):
     outpath_out = os.path.join(
         outpath, f"output_{num_codebook}"
     )  # _{num_codebook}")
+    outpath_paths = os.path.join(
+        outpath, f"paths_{num_codebook}"
+    )
     os.makedirs(outpath_in, exist_ok=True)
     os.makedirs(outpath_out, exist_ok=True)
+    if args.save_path_isolation:
+        os.makedirs(outpath_paths, exist_ok=True)
     conf_file = "/".join(args.model_path.split("/")[:-1]) + "/conf.yaml"
     conf = get_model_args(conf_file)
 
@@ -180,6 +229,11 @@ def main(args):
         dict(core=[], mb=[], hb=[]),
         [],
     )
+    total_infer_time_sec = 0.0
+    total_audio_sec = 0.0
+    infer_calls = 0
+    gflops_per_infer = None
+    model_warmed_up = False
 
     # Calculate cutoffs based on num_codebook per bands
     _, mb, hb = num_codebook
@@ -194,30 +248,81 @@ def main(args):
         cutoffs = []
 
     resampler = julius.SplitBands(conf["sample_rate"], cutoffs=cutoffs).to("cuda")
+    lp3_resampler = julius.SplitBands(conf["sample_rate"], cutoffs=[3000]).to("cuda")
+    lp6_resampler = julius.SplitBands(conf["sample_rate"], cutoffs=[6000]).to("cuda")
     duration = 10.0
     for i, row in tqdm(dataset.iterrows(), total=len(dataset)):
         audio = AudioSignal(row.path)
+        # Robustness for stereo/multi-channel inputs: force mono for DAC encoder.
+        if audio.audio_data.shape[1] > 1:
+            audio.audio_data = audio.audio_data.mean(dim=1, keepdim=True)
         if audio.shape[-1] < duration * conf["sample_rate"]:
             print("Audio shorter that duration, skipping!")
             continue
 
         signals = get_chunks(audio, duration, conf["sample_rate"])
+        chunk_lengths = [s.shape[-1] for s in signals]
         signals = AudioSignal.batch(signals, pad_signals=True)
-        for j, signal in enumerate(signals):
+        for j, (signal, chunk_len) in enumerate(zip(signals, chunk_lengths)):
             signal.to(model.device)
             fname = os.path.basename(row.path).split(".")[0] + f"_chunk_{j}"
             fnames.append(fname)
 
             with torch.no_grad():
-                non_zero_cbs = [
+                max_codebooks = [
                     conf["n_codebooks"],
                     conf["skip_args"][0]["n_codebooks"],
                     conf["skip_args"][1]["n_codebooks"],
                 ]
-                non_zero_cbs = [
-                    a if a != 0 else b for a, b in zip(num_codebook, non_zero_cbs)
-                ]
-                out = model.infer_bands(signal.audio_data, n_quantizers=non_zero_cbs)
+                if any(
+                    requested < 0 or requested > maximum
+                    for requested, maximum in zip(num_codebook, max_codebooks)
+                ):
+                    raise ValueError(
+                        f"Requested codebooks {num_codebook} must be between zero "
+                        f"and the configured maxima {max_codebooks}."
+                    )
+
+                if not model_warmed_up:
+                    print(f"Warming up model with {args.warmup_runs} inference calls...")
+                    for _ in range(args.warmup_runs):
+                        infer_active_bands(model, signal.audio_data, num_codebook)
+                    if torch.cuda.is_available():
+                        torch.cuda.synchronize()
+                    model_warmed_up = True
+
+                # Profile separately so profiler overhead is excluded from RTF.
+                if args.profile_gflops and gflops_per_infer is None:
+                    activities = [torch.profiler.ProfilerActivity.CPU]
+                    if torch.cuda.is_available():
+                        activities.append(torch.profiler.ProfilerActivity.CUDA)
+                    with torch.profiler.profile(
+                        activities=activities,
+                        with_flops=True,
+                        record_shapes=False,
+                    ) as prof:
+                        profile_out = infer_active_bands(
+                            model, signal.audio_data, num_codebook
+                        )
+                    if torch.cuda.is_available():
+                        torch.cuda.synchronize()
+                    total_flops = sum(
+                        evt.flops for evt in prof.key_averages() if evt.flops is not None
+                    )
+                    gflops_per_infer = total_flops / 1e9 if total_flops > 0 else 0.0
+                    del profile_out
+
+                if torch.cuda.is_available():
+                    torch.cuda.synchronize()
+                start_t = time.perf_counter()
+                out = infer_active_bands(model, signal.audio_data, num_codebook)
+                if torch.cuda.is_available():
+                    torch.cuda.synchronize()
+                elapsed = time.perf_counter() - start_t
+                total_infer_time_sec += elapsed
+                total_audio_sec += chunk_len / conf["sample_rate"]
+                infer_calls += 1
+
                 y_bands, codes, feats = out["audio"], out["codes"], out["feats"]
                 keys = list(y_bands.keys())
 
@@ -246,6 +351,12 @@ def main(args):
 
             signal_bands = resampler(signal.audio_data)
 
+            # Save raw decoder paths before any resampling/mixing for path-isolation analysis.
+            raw_paths = {
+                k: v.reshape(-1).detach().cpu().numpy()
+                for k, v in y_bands.items()
+            }
+
             mb_rec = np.zeros(signal.audio_data.shape)
             for i, ((k, y_band), signal_band) in enumerate(
                 zip(y_bands.items(), signal_bands)
@@ -263,6 +374,41 @@ def main(args):
 
                 mb_rec = mb_rec + y_band.cpu().detach().numpy()
                 del y_band
+
+            # Save isolated and cumulative paths in waveform domain.
+            if args.save_path_isolation:
+                ordered_keys = [k for k in ("core", "mb", "hb") if k in raw_paths]
+                running = None
+                has_upper_bands = ("mb" in ordered_keys) or ("hb" in ordered_keys)
+                for k in ordered_keys:
+                    # Raw per-path output (before any analysis-time filtering)
+                    path_sig = raw_paths[k]
+                    sf.write(
+                        os.path.join(outpath_paths, f"{fname}_{k}_only.wav"),
+                        np.column_stack((path_sig, path_sig)),
+                        samplerate=conf["sample_rate"],
+                    )
+
+                    # For cumulative analysis, enforce intended residual band assignment:
+                    # - core contributes up to ~3 kHz when upper bands are present
+                    # - mb contributes up to ~6 kHz when hb is present
+                    path_for_cum = y_bands[k]
+                    if k == "core" and has_upper_bands:
+                        path_for_cum = lp3_resampler(path_for_cum)[0]
+                    elif k == "mb" and ("hb" in ordered_keys):
+                        path_for_cum = lp6_resampler(path_for_cum)[0]
+
+                    path_for_cum = path_for_cum.reshape(-1).detach().cpu().numpy()
+                    running = (
+                        path_for_cum
+                        if running is None
+                        else (running + path_for_cum)
+                    )
+                    sf.write(
+                        os.path.join(outpath_paths, f"{fname}_cum_to_{k}.wav"),
+                        np.column_stack((running, running)),
+                        samplerate=conf["sample_rate"],
+                    )
             
             input_sig = signal.audio_data.reshape(-1).cpu().detach().numpy()
             output_sig = mb_rec.reshape(-1)
@@ -321,6 +467,25 @@ def main(args):
     print(f"Overall Total Entropy: {np.round(tot_ent, 1)}")
     for k, v in snrs.items():
         print(f"Overall SNR for {k}: {np.round(np.mean(v), 1)}")
+
+    if total_audio_sec > 0:
+        rtf = total_infer_time_sec / total_audio_sec
+        print(f"Total inference time (s): {total_infer_time_sec:.4f}")
+        print(f"Total audio duration (s): {total_audio_sec:.4f}")
+        print(f"Real-time factor (RTF): {rtf:.6f}")
+    else:
+        print("Real-time factor (RTF): N/A (no valid chunks processed)")
+
+    if args.profile_gflops:
+        if gflops_per_infer is not None:
+            avg_chunk_dur = total_audio_sec / max(infer_calls, 1)
+            print(f"Estimated GFLOPs per inference call: {gflops_per_infer:.4f}")
+            if avg_chunk_dur > 0:
+                print(
+                    f"Estimated GFLOPs per audio second: {gflops_per_infer / avg_chunk_dur:.4f}"
+                )
+        else:
+            print("Estimated GFLOPs per inference call: N/A (profiling did not run)")
         
     # lastly rename output folder to include bitrate info
 
@@ -338,7 +503,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--dataset",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/datasets/fma_32khz/fma_test.csv",
+        default="/N/slate/daripete/jstsp-dac/runs_32khz_bis/hb_16_1cb_4_1cb_2_1cb_wild_fr_75_320_500/mushra/input/wav_paths.csv",
         required=False,
     )
     parser.add_argument(
@@ -350,11 +515,30 @@ if __name__ == "__main__":
     parser.add_argument(
         "--output-path",
         type=str,
-        default="/N/slate/daripete/jstsp-dac/__tmp",
+        default="/N/slate/daripete/jstsp-dac/runs_32khz_bis/hb_16_1cb_4_1cb_2_1cb_wild_fr_75_320_500/mushra/r1_deconstruction",
         required=False,
     )
     parser.add_argument('--num_codebooks', type=str, required=True, 
                     help='List of integers, e.g. "[16,4,2]"')
+    parser.add_argument(
+        "--save-path-isolation",
+        action="store_true",
+        help="Save per-path and cumulative decoder outputs for analysis.",
+    )
+    parser.add_argument(
+        "--profile-gflops",
+        action="store_true",
+        help="Profile first inference call and report estimated GFLOPs.",
+    )
+    parser.add_argument(
+        "--warmup-runs",
+        type=int,
+        default=3,
+        help="Number of untimed GPU inference calls before benchmarking (default: 3).",
+    )
     args = parser.parse_args()
+
+    if args.warmup_runs < 0:
+        parser.error("--warmup-runs must be non-negative")
 
     main(args)
