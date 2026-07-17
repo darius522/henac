@@ -5,6 +5,7 @@ sys.path.append("/N/slate/daripete/jstsp-dac")
 
 import dac
 from audiotools import AudioSignal
+from dac.nn.quantize import VectorQuantize
 
 import yaml
 import pandas as pd
@@ -134,6 +135,71 @@ def get_model_args(conf_path):
     }
 
 
+def profile_model_compute(model, audio_data, n_quantizers):
+    """Count MACs for executed conv/linear layers and RVQ distance searches.
+
+    One multiply-accumulate (MAC) is reported as two FLOPs. Bias, activation,
+    normalization, indexing, and other elementwise operations are omitted.
+    """
+    macs = {
+        "conv1d": 0,
+        "conv_transpose1d": 0,
+        "linear": 0,
+        "vq_distance": 0,
+    }
+    handles = []
+
+    def convolution_hook(module, inputs, output):
+        input_tensor = inputs[0]
+        kernel_size = module.kernel_size[0]
+        if isinstance(module, torch.nn.ConvTranspose1d):
+            # Each input value contributes one kernel per output channel.
+            macs["conv_transpose1d"] += (
+                input_tensor.shape[0]
+                * input_tensor.shape[1]
+                * input_tensor.shape[-1]
+                * (module.out_channels // module.groups)
+                * kernel_size
+            )
+        else:
+            # Each output value computes a kernel-sized dot product.
+            macs["conv1d"] += (
+                output.numel()
+                * (module.in_channels // module.groups)
+                * kernel_size
+            )
+
+    def linear_hook(module, inputs, output):
+        macs["linear"] += output.numel() * module.in_features
+
+    def vector_quantize_hook(module, inputs, output):
+        latent = inputs[0]
+        batch_size, _, num_frames = latent.shape
+        macs["vq_distance"] += (
+            batch_size
+            * num_frames
+            * module.codebook_dim
+            * module.codebook_size
+        )
+
+    for module in model.modules():
+        if isinstance(module, (torch.nn.Conv1d, torch.nn.ConvTranspose1d)):
+            handles.append(module.register_forward_hook(convolution_hook))
+        elif isinstance(module, torch.nn.Linear):
+            handles.append(module.register_forward_hook(linear_hook))
+        elif isinstance(module, VectorQuantize):
+            handles.append(module.register_forward_hook(vector_quantize_hook))
+
+    try:
+        with torch.no_grad():
+            output = infer_active_bands(model, audio_data, n_quantizers)
+    finally:
+        for handle in handles:
+            handle.remove()
+
+    return output, macs
+
+
 def infer_active_bands(model, audio_data, n_quantizers):
     """Run only the contiguous codec paths enabled by n_quantizers."""
     core_nq, mb_nq, hb_nq = n_quantizers
@@ -233,6 +299,9 @@ def main(args):
     total_audio_sec = 0.0
     infer_calls = 0
     gflops_per_infer = None
+    gmacs_per_infer = None
+    mac_breakdown = None
+    profiled_audio_sec = None
     model_warmed_up = False
 
     # Calculate cutoffs based on num_codebook per bands
@@ -291,25 +360,19 @@ def main(args):
                         torch.cuda.synchronize()
                     model_warmed_up = True
 
-                # Profile separately so profiler overhead is excluded from RTF.
+                # Count operations separately so hook overhead is excluded from RTF.
                 if args.profile_gflops and gflops_per_infer is None:
-                    activities = [torch.profiler.ProfilerActivity.CPU]
-                    if torch.cuda.is_available():
-                        activities.append(torch.profiler.ProfilerActivity.CUDA)
-                    with torch.profiler.profile(
-                        activities=activities,
-                        with_flops=True,
-                        record_shapes=False,
-                    ) as prof:
-                        profile_out = infer_active_bands(
-                            model, signal.audio_data, num_codebook
-                        )
+                    profile_out, mac_breakdown = profile_model_compute(
+                        model, signal.audio_data, num_codebook
+                    )
                     if torch.cuda.is_available():
                         torch.cuda.synchronize()
-                    total_flops = sum(
-                        evt.flops for evt in prof.key_averages() if evt.flops is not None
+                    total_macs = sum(mac_breakdown.values())
+                    gmacs_per_infer = total_macs / 1e9
+                    gflops_per_infer = 2 * gmacs_per_infer
+                    profiled_audio_sec = (
+                        signal.audio_data.shape[-1] / conf["sample_rate"]
                     )
-                    gflops_per_infer = total_flops / 1e9 if total_flops > 0 else 0.0
                     del profile_out
 
                 if torch.cuda.is_available():
@@ -478,11 +541,19 @@ def main(args):
 
     if args.profile_gflops:
         if gflops_per_infer is not None:
-            avg_chunk_dur = total_audio_sec / max(infer_calls, 1)
+            print("Compute convention: 1 MAC = 2 FLOPs")
+            for operation, operation_macs in mac_breakdown.items():
+                print(f"  {operation} GMACs per call: {operation_macs / 1e9:.4f}")
+            print(f"Estimated GMACs per inference call: {gmacs_per_infer:.4f}")
             print(f"Estimated GFLOPs per inference call: {gflops_per_infer:.4f}")
-            if avg_chunk_dur > 0:
+            if profiled_audio_sec and profiled_audio_sec > 0:
                 print(
-                    f"Estimated GFLOPs per audio second: {gflops_per_infer / avg_chunk_dur:.4f}"
+                    "Estimated GMACs per audio second: "
+                    f"{gmacs_per_infer / profiled_audio_sec:.4f}"
+                )
+                print(
+                    "Estimated GFLOPs per audio second: "
+                    f"{gflops_per_infer / profiled_audio_sec:.4f}"
                 )
         else:
             print("Estimated GFLOPs per inference call: N/A (profiling did not run)")
