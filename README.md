@@ -10,6 +10,11 @@ three paths in sequence: train the core, freeze it while training the mid band,
 then freeze both while training the high band. This repository provides one
 implementation for all three stages, plus inference and objective evaluation.
 
+![HE-NAC architecture with core, mid, and high band paths.](docs/media/henac-architecture.png)
+
+*The three-stage HE-NAC architecture. Figure from the
+[paper](https://doi.org/10.1109/TASLPRO.2026.3739174).*
+
 | Stage | Trainable path | Loss target | Starts from |
 | --- | --- | --- | --- |
 | Core | Encoder, core RVQ, blind decoder | Full band | Scratch |
@@ -63,6 +68,32 @@ and a high path also requires a mid path.
 > from the observed code indices. It is not an encoded file size. HE-NAC does
 > not currently write an entropy-coded bitstream; the paper's effective
 > bitrates were measured after Huffman coding.
+
+## Listen and results 🎧
+
+The paper's MUSHRA-style test used 12 ten-second FMA excerpts at 32 kHz and
+15 expert listeners after screening. Each trial included a hidden reference,
+a 3.5 kHz low-pass anchor, and four coded systems. The 23 kbps HE-NAC setting
+had the highest mean score among the coded systems.
+
+![Mean MUSHRA scores with 95% confidence intervals; HE-NAC at 23 kbps scores highest among the coded systems.](docs/media/mushra-32khz.png)
+
+*Mean MUSHRA scores with 95% confidence intervals from the
+[paper](https://doi.org/10.1109/TASLPRO.2026.3739174). HE-NAC tuples give
+core, mid, and high band codebook counts. The HE-NAC and DAC rates are rounded
+effective rates after Huffman coding; HE-AAC v1 was configured at 24 kbps.*
+
+Listen to one of the test excerpts in each available condition:
+
+| Reference | HE-NAC 23 kbps | HE-NAC 18 kbps | DAC 23 kbps | HE-AAC v1 24 kbps |
+| --- | --- | --- | --- | --- |
+| [▶ WAV](docs/audio/031944/reference.wav?raw=1) | [▶ WAV](docs/audio/031944/henac-23kbps.wav?raw=1) | [▶ WAV](docs/audio/031944/henac-18kbps.wav?raw=1) | [▶ WAV](docs/audio/031944/dac-23kbps.wav?raw=1) | [▶ WAV](docs/audio/031944/heaac-24kbps.wav?raw=1) |
+
+The webMUSHRA anchor was generated during the test and is not included as a
+WAV. The excerpt is from [“champagne ardennes” by Misiaczek](https://freemusicarchive.org/music/Misiaczek/La_Fantaisie_des_Biches/champagne_ardennes),
+licensed [CC BY 2.0 France](https://creativecommons.org/licenses/by/2.0/fr/).
+It was selected for its redistribution license; the plotted results use all
+12 test excerpts. See the [audio provenance](docs/audio/README.md) for details.
 
 ## Train 🏋️
 
@@ -167,4 +198,5 @@ If HE-NAC helps your work, please cite the [paper](https://doi.org/10.1109/TASLP
 The [project page](https://minjekim.com/research-projects/he-nac) has more
 information. Machine-readable citation data is in [CITATION.cff](CITATION.cff).
 Code and released checkpoint weights are under the MIT license; code adapted
-from DAC retains its attribution in [LICENSE](LICENSE).
+from DAC retains its attribution in [LICENSE](LICENSE). The listening example
+has [separate Creative Commons terms](docs/audio/README.md).
