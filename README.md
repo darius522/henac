@@ -78,22 +78,14 @@ had the highest mean score among the coded systems.
 
 ![Mean MUSHRA scores with 95% confidence intervals; HE-NAC at 23 kbps scores highest among the coded systems.](docs/media/mushra-32khz.png)
 
-*Mean MUSHRA scores with 95% confidence intervals from the
-[paper](https://doi.org/10.1109/TASLPRO.2026.3739174). HE-NAC tuples give
-core, mid, and high band codebook counts. The HE-NAC and DAC rates are rounded
-effective rates after Huffman coding; HE-AAC v1 was configured at 24 kbps.*
-
-Download the study WAVs for one excerpt to compare them locally:
-
-| Reference | HE-NAC 23 kbps | HE-NAC 18 kbps | DAC 23 kbps | HE-AAC v1 24 kbps |
-| --- | --- | --- | --- | --- |
-| [Reference WAV](docs/audio/031944/reference.wav?raw=1) | [HE-NAC 23 WAV](docs/audio/031944/henac-23kbps.wav?raw=1) | [HE-NAC 18 WAV](docs/audio/031944/henac-18kbps.wav?raw=1) | [DAC 23 WAV](docs/audio/031944/dac-23kbps.wav?raw=1) | [HE-AAC 24 WAV](docs/audio/031944/heaac-24kbps.wav?raw=1) |
-
-The webMUSHRA anchor was generated during the test and is not included as a
-WAV. The excerpt is from [“champagne ardennes” by Misiaczek](https://freemusicarchive.org/music/Misiaczek/La_Fantaisie_des_Biches/champagne_ardennes),
-licensed [CC BY 2.0 France](https://creativecommons.org/licenses/by/2.0/fr/).
-It was selected for its redistribution license; the plotted results use all
-12 test excerpts. See the [audio provenance](docs/audio/README.md) for details.
+| Excerpt | Listen |
+| --- | --- |
+| “Wackity Schmackity Doo” — So Cow | [▶ Audio comparison](https://darius522.github.io/henac/#track-001662) |
+| “Babies” — The Set of Red Things | [▶ Audio comparison](https://darius522.github.io/henac/#track-001861) |
+| “Volant” — La Troba Kung-Fu | [▶ Audio comparison](https://darius522.github.io/henac/#track-003777) |
+| “Windmill” — Listen With Sarah | [▶ Audio comparison](https://darius522.github.io/henac/#track-029678) |
+| “champagne ardennes” — Misiaczek | [▶ Audio comparison](https://darius522.github.io/henac/#track-031944) |
+| “Heart and Mind and Soul” — Derek Clegg | [▶ Audio comparison](https://darius522.github.io/henac/#track-108394) |
 
 ## Train 🏋️
 
@@ -198,5 +190,4 @@ If HE-NAC helps your work, please cite the [paper](https://doi.org/10.1109/TASLP
 The [project page](https://minjekim.com/research-projects/he-nac) has more
 information. Machine-readable citation data is in [CITATION.cff](CITATION.cff).
 Code and released checkpoint weights are under the MIT license; code adapted
-from DAC retains its attribution in [LICENSE](LICENSE). The listening example
-has [separate Creative Commons terms](docs/audio/README.md).
+from DAC retains its attribution in [LICENSE](LICENSE).

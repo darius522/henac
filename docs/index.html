@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HE-NAC listening examples</title>
+  <style>
+    :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+    body { max-width: 1200px; margin: 0 auto; padding: 2rem 1rem; line-height: 1.5; }
+    a { color: #0b63a4; }
+    @media (prefers-color-scheme: dark) { a { color: #82c5ff; } }
+    .table-wrap { overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; }
+    caption { text-align: left; margin-bottom: 0.75rem; }
+    th, td { border-bottom: 1px solid #8886; padding: 0.75rem 0.5rem; }
+    thead th { white-space: nowrap; }
+    tbody th { min-width: 11rem; text-align: left; }
+    tbody th small { display: block; font-weight: normal; }
+    audio { width: 180px; }
+  </style>
+</head>
+<body>
+<main>
+  <p><a href="https://github.com/darius522/henac">← HE-NAC README</a></p>
+  <h1>HE-NAC listening examples 🎧</h1>
+  <p>Six 10-second excerpts from the paper’s MUSHRA listening test. Headphones are recommended.</p>
+  <div class="table-wrap">
+    <table>
+      <caption>Original study signals at 32 kHz. Audio loads only when played.</caption>
+      <thead>
+        <tr>
+          <th scope="col">Excerpt</th>
+          <th scope="col">Reference</th>
+          <th scope="col">HE-NAC 23 kbps</th>
+          <th scope="col">HE-NAC 18 kbps</th>
+          <th scope="col">DAC 23 kbps</th>
+          <th scope="col">HE-AAC v1 24 kbps</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr id="track-001662">
+          <th scope="row">Wackity Schmackity Doo<small>So Cow</small></th>
+          <td><audio controls preload="none" src="audio/001662/reference.wav" aria-label="Reference: Wackity Schmackity Doo by So Cow">
+            <a href="audio/001662/reference.wav">Download WAV</a>
+          </audio></td>
+          <td><audio controls preload="none" src="audio/001662/henac-23kbps.wav" aria-label="HE-NAC 23 kbps: Wackity Schmackity Doo by So Cow">
+            <a href="audio/001662/henac-23kbps.wav">Download WAV</a>
+          </audio></td>
+          <td><audio controls preload="none" src="audio/001662/henac-18kbps.wav" aria-label="HE-NAC 18 kbps: Wackity Schmackity Doo by So Cow">
+            <a href="audio/001662/henac-18kbps.wav">Download WAV</a>
+          </audio></td>
+          <td><audio controls preload="none" src="audio/001662/dac-23kbps.wav" aria-label="DAC 23 kbps: Wackity Schmackity Doo by So Cow">
+            <a href="audio/001662/dac-23kbps.wav">Download WAV</a>
+          </audio></td>
+          <td><audio controls preload="none" src="audio/001662/heaac-24kbps.wav" aria-label="HE-AAC v1 24 kbps: Wackity Schmackity Doo by So Cow">
+            <a href="audio/001662/heaac-24kbps.wav">Download WAV</a>
+          </audio></td>
+        </tr>
+        <tr id="track-001861">
+          <th scope="row">Babies<small>The Set of Red Things</small></th>
+          <td><audio controls preload="none" src="audio/001861/reference.wav" aria-label="Reference: Babies by The Set of Red Things">
+            <a href="audio/001861/reference.wav">Download WAV</a>
+          </audio></td>
+          <td><audio controls preload="none" src="audio/001861/henac-23kbps.wav" aria-label="HE-NAC 23 kbps: Babies by The Set of Red Things">
+            <a href="audio/001861/henac-23kbps.wav">Download WAV</a>
+          </audio></td>
+          <td><audio controls preload="none" src="audio/001861/henac-18kbps.wav" aria-label="HE-NAC 18 kbps: Babies by The Set of Red Things">
+            <a href="audio/001861/henac-18kbps.wav">Download WAV</a>
+          </audio></td>
+          <td><audio controls preload="none" src="audio/001861/dac-23kbps.wav" aria-label="DAC 23 kbps: Babies by The Set of Red Things">
+            <a href="audio/001861/dac-23kbps.wav">Download WAV</a>
+          </audio></td>
+          <td><audio controls preload="none" src="audio/001861/heaac-24kbps.wav" aria-label="HE-AAC v1 24 kbps: Babies by The Set of Red Things">
+            <a href="audio/001861/heaac-24kbps.wav">Download WAV</a>
+          </audio></td>
+        </tr>
+        <tr id="track-003777">
+          <th scope="row">Volant<small>La Troba Kung-Fu</small></th>
+          <td><audio controls preload="none" src="audio/003777/reference.wav" aria-label="Reference: Volant by La Troba Kung-Fu">
+            <a href="audio/003777/reference.wav">Download WAV</a>
+          </audio></td>
+          <td><audio controls preload="none" src="audio/003777/henac-23kbps.wav" aria-label="HE-NAC 23 kbps: Volant by La Troba Kung-Fu">
+            <a href="audio/003777/henac-23kbps.wav">Download WAV</a>
+          </audio></td>
+          <td><audio controls preload="none" src="audio/003777/henac-18kbps.wav" aria-label="HE-NAC 18 kbps: Volant by La Troba Kung-Fu">
+            <a href="audio/003777/henac-18kbps.wav">Download WAV</a>
+          </audio></td>
+          <td><audio controls preload="none" src="audio/003777/dac-23kbps.wav" aria-label="DAC 23 kbps: Volant by La Troba Kung-Fu">
+            <a href="audio/003777/dac-23kbps.wav">Download WAV</a>
+          </audio></td>
+          <td><audio controls preload="none" src="audio/003777/heaac-24kbps.wav" aria-label="HE-AAC v1 24 kbps: Volant by La Troba Kung-Fu">
+            <a href="audio/003777/heaac-24kbps.wav">Download WAV</a>
+          </audio></td>
+        </tr>
+        <tr id="track-029678">
+          <th scope="row">Windmill<small>Listen With Sarah</small></th>
+          <td><audio controls preload="none" src="audio/029678/reference.wav" aria-label="Reference: Windmill by Listen With Sarah">
+            <a href="audio/029678/reference.wav">Download WAV</a>
+          </audio></td>
+          <td><audio controls preload="none" src="audio/029678/henac-23kbps.wav" aria-label="HE-NAC 23 kbps: Windmill by Listen With Sarah">
+            <a href="audio/029678/henac-23kbps.wav">Download WAV</a>
+          </audio></td>
+          <td><audio controls preload="none" src="audio/029678/henac-18kbps.wav" aria-label="HE-NAC 18 kbps: Windmill by Listen With Sarah">
+            <a href="audio/029678/henac-18kbps.wav">Download WAV</a>
+          </audio></td>
+          <td><audio controls preload="none" src="audio/029678/dac-23kbps.wav" aria-label="DAC 23 kbps: Windmill by Listen With Sarah">
+            <a href="audio/029678/dac-23kbps.wav">Download WAV</a>
+          </audio></td>
+          <td><audio controls preload="none" src="audio/029678/heaac-24kbps.wav" aria-label="HE-AAC v1 24 kbps: Windmill by Listen With Sarah">
+            <a href="audio/029678/heaac-24kbps.wav">Download WAV</a>
+          </audio></td>
+        </tr>
+        <tr id="track-031944">
+          <th scope="row">champagne ardennes<small>Misiaczek</small></th>
+          <td><audio controls preload="none" src="audio/031944/reference.wav" aria-label="Reference: champagne ardennes by Misiaczek">
+            <a href="audio/031944/reference.wav">Download WAV</a>
+          </audio></td>
+          <td><audio controls preload="none" src="audio/031944/henac-23kbps.wav" aria-label="HE-NAC 23 kbps: champagne ardennes by Misiaczek">
+            <a href="audio/031944/henac-23kbps.wav">Download WAV</a>
+          </audio></td>
+          <td><audio controls preload="none" src="audio/031944/henac-18kbps.wav" aria-label="HE-NAC 18 kbps: champagne ardennes by Misiaczek">
+            <a href="audio/031944/henac-18kbps.wav">Download WAV</a>
+          </audio></td>
+          <td><audio controls preload="none" src="audio/031944/dac-23kbps.wav" aria-label="DAC 23 kbps: champagne ardennes by Misiaczek">
+            <a href="audio/031944/dac-23kbps.wav">Download WAV</a>
+          </audio></td>
+          <td><audio controls preload="none" src="audio/031944/heaac-24kbps.wav" aria-label="HE-AAC v1 24 kbps: champagne ardennes by Misiaczek">
+            <a href="audio/031944/heaac-24kbps.wav">Download WAV</a>
+          </audio></td>
+        </tr>
+        <tr id="track-108394">
+          <th scope="row">Heart and Mind and Soul<small>Derek Clegg</small></th>
+          <td><audio controls preload="none" src="audio/108394/reference.wav" aria-label="Reference: Heart and Mind and Soul by Derek Clegg">
+            <a href="audio/108394/reference.wav">Download WAV</a>
+          </audio></td>
+          <td><audio controls preload="none" src="audio/108394/henac-23kbps.wav" aria-label="HE-NAC 23 kbps: Heart and Mind and Soul by Derek Clegg">
+            <a href="audio/108394/henac-23kbps.wav">Download WAV</a>
+          </audio></td>
+          <td><audio controls preload="none" src="audio/108394/henac-18kbps.wav" aria-label="HE-NAC 18 kbps: Heart and Mind and Soul by Derek Clegg">
+            <a href="audio/108394/henac-18kbps.wav">Download WAV</a>
+          </audio></td>
+          <td><audio controls preload="none" src="audio/108394/dac-23kbps.wav" aria-label="DAC 23 kbps: Heart and Mind and Soul by Derek Clegg">
+            <a href="audio/108394/dac-23kbps.wav">Download WAV</a>
+          </audio></td>
+          <td><audio controls preload="none" src="audio/108394/heaac-24kbps.wav" aria-label="HE-AAC v1 24 kbps: Heart and Mind and Soul by Derek Clegg">
+            <a href="audio/108394/heaac-24kbps.wav">Download WAV</a>
+          </audio></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p><a href="https://github.com/darius522/henac/blob/master/docs/audio/README.md">Audio source and license details</a></p>
+</main>
+</body>
+</html>
