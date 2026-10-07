@@ -1,0 +1,4 @@
+$include: [conf/henac/base.yml]
+DAC.stage: mid
+MelSpectrogramLoss.mel_fmin: [3000, 3000, 3000, 3000, 3000, 3000, 3000]
+save_path: runs/mid

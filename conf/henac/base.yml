@@ -1,0 +1,81 @@
+# Shared 32 kHz recipe. Supply train_path and val_path on the command line.
+DAC.sample_rate: 32000
+DAC.encoder_dim: 64
+DAC.encoder_rates: [2, 2, 5, 20]
+DAC.latent_dim: 1024
+DAC.decoder_dim: 1536
+DAC.decoder_rates: [20, 5, 2, 2]
+DAC.n_codebooks: 16
+DAC.codebook_size: 1024
+DAC.codebook_dim: 8
+DAC.quantizer_dropout: 0.0
+DAC.min_n_codebooks: 16
+DAC.skip_args:
+  0:
+    codebook_dim: 4096
+    n_codebooks: 4
+    encoder_rates: [5]
+    decoder_rates: [5]
+    quantizer_dropout: 0.5
+    gumbel_softmax: false
+    diff_entropy: false
+  1:
+    codebook_dim: 16384
+    n_codebooks: 2
+    encoder_rates: [16]
+    decoder_rates: [16]
+    quantizer_dropout: 0.5
+    gumbel_softmax: false
+    diff_entropy: false
+
+Discriminator.sample_rate: 32000
+Discriminator.rates: []
+Discriminator.periods: [2, 3, 5, 7, 11]
+Discriminator.fft_sizes: [2048, 1024, 512]
+Discriminator.bands:
+  - [0.0, 0.1]
+  - [0.1, 0.25]
+  - [0.25, 0.5]
+  - [0.5, 0.75]
+  - [0.75, 1.0]
+
+AdamW.betas: [0.8, 0.99]
+AdamW.lr: 0.0001
+ExponentialLR.gamma: 0.999996
+amp: false
+seed: 0
+batch_size: 8
+val_batch_size: 1
+num_workers: 8
+num_iters: 400000
+valid_freq: 1000
+log_freq: 100
+save_iters: [50000, 100000, 200000, 300000, 400000]
+band_cutoffs: [3000, 6000]
+band_scaler: 1.0
+decoder_frozen: false
+lambdas:
+  mel/loss: 15.0
+  adv/feat_loss: 2.0
+  adv/gen_loss: 1.0
+  vq/commitment_loss: 0.25
+  vq/codebook_loss: 1.0
+
+VolumeNorm.db: [const, -16]
+build_transform.preprocess: [Identity]
+build_transform.augment_prob: 0.0
+build_transform.augment: [Identity]
+build_transform.postprocess: [VolumeNorm, RescaleAudio, ShiftPhase]
+val/build_transform.augment_prob: 1.0
+MultiScaleSTFTLoss.window_lengths: [2048, 512]
+MelSpectrogramLoss.n_mels: [5, 10, 20, 40, 80, 160, 320]
+MelSpectrogramLoss.window_lengths: [32, 64, 128, 256, 512, 1024, 2048]
+MelSpectrogramLoss.mel_fmax: [null, null, null, null, null, null, null]
+MelSpectrogramLoss.pow: 1.0
+MelSpectrogramLoss.clamp_eps: 1.0e-5
+MelSpectrogramLoss.mag_weight: 0.0
+
+train/build_dataset.duration: 0.38
+train/build_dataset.n_examples: 10000000
+val/build_dataset.duration: 0.38
+val/build_dataset.n_examples: 250

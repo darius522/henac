@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "henac"
+version = "0.1.0"
+description = "HE-NAC: hierarchical, residual, multiband neural audio coding"
+authors = [
+  {name = "Darius Pétermann"},
+  {name = "Wootaek Lim"},
+  {name = "Seungkwon Beack"},
+  {name = "Minje Kim"},
+]
+readme = "README.md"
+requires-python = ">=3.10"
+license = {file = "LICENSE"}
+dependencies = [
+  "argbind>=0.3.7",
+  "descript-audiotools>=0.7.2",
+  "einops",
+  "julius",
+  "numpy",
+  "PyYAML",
+  "soundfile",
+  "tensorboard",
+  "torch>=2.1",
+  "torchaudio",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+
+[project.scripts]
+henac-infer = "henac.infer:main"
+henac-eval = "henac.evaluate:main"
+henac-train = "henac.train:main"
+
+[project.urls]
+Homepage = "https://minjekim.com/research-projects/he-nac"
+Repository = "https://github.com/darius522/henac"
+
+[tool.setuptools.packages.find]
+include = ["henac*"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F"]
