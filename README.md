@@ -83,11 +83,11 @@ had the highest mean score among the coded systems.
 core, mid, and high band codebook counts. The HE-NAC and DAC rates are rounded
 effective rates after Huffman coding; HE-AAC v1 was configured at 24 kbps.*
 
-Listen to one of the test excerpts in each available condition:
+Download the study WAVs for one excerpt to compare them locally:
 
 | Reference | HE-NAC 23 kbps | HE-NAC 18 kbps | DAC 23 kbps | HE-AAC v1 24 kbps |
 | --- | --- | --- | --- | --- |
-| [▶ WAV](docs/audio/031944/reference.wav?raw=1) | [▶ WAV](docs/audio/031944/henac-23kbps.wav?raw=1) | [▶ WAV](docs/audio/031944/henac-18kbps.wav?raw=1) | [▶ WAV](docs/audio/031944/dac-23kbps.wav?raw=1) | [▶ WAV](docs/audio/031944/heaac-24kbps.wav?raw=1) |
+| [Reference WAV](docs/audio/031944/reference.wav?raw=1) | [HE-NAC 23 WAV](docs/audio/031944/henac-23kbps.wav?raw=1) | [HE-NAC 18 WAV](docs/audio/031944/henac-18kbps.wav?raw=1) | [DAC 23 WAV](docs/audio/031944/dac-23kbps.wav?raw=1) | [HE-AAC 24 WAV](docs/audio/031944/heaac-24kbps.wav?raw=1) |
 
 The webMUSHRA anchor was generated during the test and is not included as a
 WAV. The excerpt is from [“champagne ardennes” by Misiaczek](https://freemusicarchive.org/music/Misiaczek/La_Fantaisie_des_Biches/champagne_ardennes),
