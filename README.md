@@ -78,14 +78,7 @@ had the highest mean score among the coded systems.
 
 ![Mean MUSHRA scores with 95% confidence intervals; HE-NAC at 23 kbps scores highest among the coded systems.](docs/media/mushra-32khz.png)
 
-| Excerpt | Listen |
-| --- | --- |
-| “Wackity Schmackity Doo” — So Cow | [▶ Audio comparison](https://darius522.github.io/henac/#track-001662) |
-| “Babies” — The Set of Red Things | [▶ Audio comparison](https://darius522.github.io/henac/#track-001861) |
-| “Volant” — La Troba Kung-Fu | [▶ Audio comparison](https://darius522.github.io/henac/#track-003777) |
-| “Windmill” — Listen With Sarah | [▶ Audio comparison](https://darius522.github.io/henac/#track-029678) |
-| “champagne ardennes” — Misiaczek | [▶ Audio comparison](https://darius522.github.io/henac/#track-031944) |
-| “Heart and Mind and Soul” — Derek Clegg | [▶ Audio comparison](https://darius522.github.io/henac/#track-108394) |
+[▶ Listen to six side-by-side audio comparisons](https://www.dariuspetermann.com/henac/)
 
 ## Train 🏋️
 
