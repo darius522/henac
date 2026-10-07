@@ -15,6 +15,6 @@ jobs:
       - run: python -m pip install --upgrade pip
       - run: python -m pip install ".[dev]"
       - run: python -m pip check
-      - run: ruff check henac scripts tests
-      - run: ruff format --check henac scripts tests
+      - run: ruff check henac tests
+      - run: ruff format --check henac tests
       - run: python -m pytest tests -q

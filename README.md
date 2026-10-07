@@ -134,35 +134,6 @@ The evaluator matches relative filenames and writes per-file full-band and
 band-wise L1, SNR, and SI-SDR to `evaluation.csv`, with means in
 `evaluation.json`.
 
-## Reproducibility
-
-The consolidated model strictly loads the 300k checkpoint and regenerated
-**byte-identical WAVs** to the original `entropy_ctrl_hb` implementation on all
-39 checked MUSHRA inputs at `[16, 4, 2]` codebooks. Against the supplied gold
-WAVs, the lowest exact PCM fraction was 98.870% and the lowest
-signal-to-difference ratio was 47.96 dB; the legacy implementation shows the
-same differences on the checked runtime. See the
-[inference parity record](docs/reference-parity.md).
-
-One-step training calculations were compared against all three original
-branches, including the final high-band checkpoint. A full-size core → mid →
-high training handoff, checkpoint resume, and multi-GPU training were also
-checked. See the [training parity record](docs/training-parity.md). The
-original corpus and core/mid checkpoints are unavailable, so a complete 300k
-training trajectory has not been reproduced.
-
-Run the tests without the private reference assets:
-
-```bash
-python -m pytest tests -q
-ruff check henac scripts tests
-ruff format --check henac scripts tests
-```
-
-The loader also accepts the local legacy `checkpoints/300k` folder when its
-`checkpoints/conf.yaml` is present. Checkpoint files and MUSHRA audio are not
-tracked in this code repository.
-
 ## Citation 📄
 
 If HE-NAC helps your work, please cite the [paper](https://doi.org/10.1109/TASLPRO.2026.3739174):
