@@ -39,6 +39,8 @@ henac-train = "henac.train:main"
 [project.urls]
 Homepage = "https://minjekim.com/research-projects/he-nac"
 Repository = "https://github.com/darius522/henac"
+Paper = "https://doi.org/10.1109/TASLPRO.2026.3739174"
+Model = "https://huggingface.co/darius522/henac"
 
 [tool.setuptools.packages.find]
 include = ["henac*"]

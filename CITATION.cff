@@ -1,7 +1,7 @@
 cff-version: 1.2.0
-message: "If you use HE-NAC, please cite the associated paper. Add the paper DOI when available."
+message: "If you use HE-NAC, please cite the paper below."
 type: software
-title: "HE-NAC: High-Efficiency Neural Audio Coding via Hierarchical and Residual Multi-Band Quantization"
+title: "HE-NAC: High-Efficiency Neural Audio Coding Via Hierarchical and Residual Multi-Band Quantization"
 authors:
   - family-names: "Pétermann"
     given-names: "Darius"
@@ -14,3 +14,20 @@ authors:
 url: "https://minjekim.com/research-projects/he-nac"
 repository-code: "https://github.com/darius522/henac"
 license: MIT
+preferred-citation:
+  type: article
+  authors:
+    - family-names: "Pétermann"
+      given-names: "Darius"
+    - family-names: "Lim"
+      given-names: "Wootaek"
+    - family-names: "Beack"
+      given-names: "Seungkwon"
+    - family-names: "Kim"
+      given-names: "Minje"
+  title: "HE-NAC: High-Efficiency Neural Audio Coding Via Hierarchical and Residual Multi-Band Quantization"
+  journal: "IEEE Transactions on Audio, Speech and Language Processing"
+  year: 2026
+  start: 1
+  end: 15
+  doi: "10.1109/TASLPRO.2026.3739174"
